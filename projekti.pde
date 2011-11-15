@@ -1,10 +1,10 @@
 import processing.opengl.*;
-int wsize = 4;
+int wsize = 3;
 World world;
 Player player = new Player(
-	new PVector(0, 0, 0), 
-	new PVector(1, 0, 0), 0,
-	new PVector(0, 1, 0)
+	new PVector(-1, 0, 0), 
+	new PVector(0, 0, 1), 1,
+	new PVector(-1, 0, 0)
 );
 TexCube tcube = new TexCube(new PlasmaTex(new PImage(64, 64)));
 class FlyCam 
@@ -69,6 +69,7 @@ void keyPressed ()
    if (key == 'd') cam.move_right    = true;
    if (key == 'w') cam.move_forward  = true;
    if (key == 's') cam.move_backward = true;
+   player.doKbd(key, true);
 }
 
 void keyReleased ()
@@ -77,6 +78,7 @@ void keyReleased ()
    if (key == 'd') cam.move_right    = false;
    if (key == 'w') cam.move_forward  = false;
    if (key == 's') cam.move_backward = false;
+   player.doKbd(key, false);
 }
 void mouseDragged() {
 	PVector mouseDiff = PVector.sub(new PVector(mouseX, mouseY), new PVector(pmouseX, pmouseY));
@@ -85,6 +87,36 @@ void mouseDragged() {
 	//cam.theta = constrain(cam.theta - PI * mouseDiff.y / height, -PI / 2, PI / 16);
 }
 FlyCam cam = new FlyCam();
+
+
+
+
+
+
+PImage bg;
+PImage texmap;
+
+int sDetail = 35;  // Sphere detail setting
+float rotationX = 0;
+float rotationY = 0;
+float velocityX = 0;
+float velocityY = 0;
+float globeRadius = 450;
+float pushBack = 0;
+
+float[] cx, cz, sphereX, sphereY, sphereZ;
+float sinLUT[];
+float cosLUT[];
+float SINCOS_PRECISION = 0.5;
+int SINCOS_LENGTH = int(360.0 / SINCOS_PRECISION);
+
+
+
+
+
+
+
+
 void setup() {
 	size(800, 600, OPENGL);
 	cam.pos.set(0, 0, 0);
@@ -92,25 +124,35 @@ void setup() {
 	world=new World(wsize);
 	//cam.phi = -PI/4;
 	//cam.theta=PI/4;
+	
+	texmap = loadImage("/home/sooda/world32k.jpg");    
+  initializeSphere(sDetail);
+	
+	
+	
 }
+float lasttime = 0;
 void draw() {
+	cam.update();
+	
 	tcube.update();
 	textureMode(NORMALIZED);
 	lights();
-	background(0);
+	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -0.5))) ? 0 : color(0, 0, 255));
 	noStroke();
 	stroke(255);
 	
 	beginCamera();
 	resetMatrix();
-	scale(1, -1, 1);
+// 	scale(1, -1, 1);
 	endCamera();
 	
-	resetMatrix();
-	scale(1, -1, 1);
-	printProjection();
-	
-	cam.update();
+// 	resetMatrix();
+// 	scale(1, -1, 1);
+// 	println(tan(PI*60.0/360.0));
+// 	perspective(PI/3.0, width/height, cameraZ/10.0, cameraZ*10.0);
+// 	perspective(PI/3.0, width/height, 1, cameraZ*10.0);
+	//frustum(-width/2, width/2, 0, height, -100, 100);
 	  // Make sure that the camera matrix is identity. Not needed.
   //beginCamera ();
   //resetMatrix();
@@ -120,15 +162,37 @@ void draw() {
   // Flip y-axis up. Using a left handed coordinate system is insane.waa
   //scale(1, -1, 1);
   // Setup a point light a the viewer's position.
-  scale(80);
   // Set viewer position (= Camera matrix)  
-  cam.apply ();
+	//cam.apply ();
+	scale(100);
+	player.apply();
+	scale(100);
+// 	translate(0, 0, -5);
 	world.draw();
+	if (lasttime != 0) player.update(millis() - lasttime);
+	lasttime = millis();
+	player.draw();
+
+	float pos = 0.5 * (1 + sin(millis() / 1000.0));
+	translate(-1, 0, pos);
+	stroke(255);
+	noStroke();
+	fill(0, 255, 0);
+	
+// 	sphere(0.5);
+	rotateY(2*PI*pos/(2*PI*0.5));
+	stroke(255);
+}
+
+class Kbd {
+	boolean[] buttons = new boolean[256];
 }
 
 class Player {
-	PVector pos, dir, up;
+	PVector pos, dir, up; // maailmakoordinaatistossa
 	float spd;
+	Kbd kbd = new Kbd();
+	boolean rotated = true;
 	Player(PVector p, PVector d, float s, PVector u) {
 		pos = p;
 		dir = d;
@@ -136,11 +200,49 @@ class Player {
 		up = u;
 	}
 	void apply() {
+		PVector e = PVector.sub(pos, PVector.mult(dir, 3));
+		e.add(up);
+		int s=100;
+		camera(s*e.x, s*e.y, s*e.z, s*pos.x, s*pos.y, s*pos.z,- up.x, -up.y, -up.z);
+// 		camera(-100, -100, -100,  0, 0, 0,  0, 1, 0);
+		//camera(-100, -100, -100,  0, 0, 0,  0, 1, 0);
+	}
+	void update(float dt) {
+		dt /= 1000;
+		if (kbd.buttons['i']) spd += 5 * dt;
+		if (kbd.buttons['k']) spd -= 5 * dt;
+		if (kbd.buttons['j']) rot(1 * dt);
+		if (kbd.buttons['l']) rot(-1 * dt);
+
+		//println(dt);
+		//println(dir.x + ", " + dir.y + ", " + dir.z);
+		pos.add(PVector.mult(dir, spd * dt));
 		
+		if (!rotated && !world.hasBlk(PVector.add(pos, PVector.mult(up, -0.5)))) {
+// 			rotated=true;
+			// kierii reunalta; pyöräytä suunta ja up
+			PVector axis = up.cross(dir);
+			PMatrix3D rotmat = new PMatrix3D();
+			rotmat.rotate(PI/2, axis.x, axis.y, axis.z);
+			dir = rotmat.mult(dir, null);
+			up = rotmat.mult(up, null);
+			pos.add(PVector.mult(up, dt));
+		}
+	}
+	void doKbd(char key, boolean state) {
+		kbd.buttons[key] = state;
+	}
+	void rot(float ang) {
+		PMatrix3D rotmat = new PMatrix3D();
+		rotmat.rotate(-ang, up.x, up.y, up.z);
+		dir = rotmat.mult(dir, null);
 	}
 	void draw() {
 		pushMatrix();
-		sphere(1);
+		translate(pos.x, pos.y, pos.z);
+// 		textureMode(IMAGE);  
+// 		texturedSphere(0.5, texmap);
+		tcube.draw(0.5);
 		popMatrix();
 	}
 }
@@ -156,10 +258,19 @@ class World {
 		generate();
 
 	}
+	boolean hasBlk(PVector point) {
+		int x = (int)(point.x); // round
+		int y = (int)(point.y);
+		int z = (int)(point.z);
+		println("has? " + point.x + " " + point.y + " " + point.z);
+		return x >= 0 && y >= 0 && z >= 0 
+			&& x < size && y < size && z < size 
+			&& map[at(x, y, z)] != 0;
+	}
 	void generate() {
 		//map=null;
 		//map[0]=0;// rivi 146
-		int space = 4; // ei mielellään 0.
+		int space = 5; // ei mielellään 0.
 		// sz^3 pisteitä, joiden välillä space tyhjää (tyhjä 0: kuutio)
 		// eli (sz+(sz-1)*space)^3 tileä
 		// visited ~ V_new
@@ -177,10 +288,10 @@ class World {
 		map[0] = color(255,255,255);
 		
 		while (count < size3) {
-			println("\nDoing: " + count);
-			print("visited:");
-			for (int i = 0; i < count; i++) print(" " + visitorder[i]);
-			println("");
+			//println("\nDoing: " + count);
+			//print("visited:");
+			//for (int i = 0; i < count; i++) print(" " + visitorder[i]);
+			//println("");
 			// todo: reunimmaiset tilet muistissa. muista nopeasti sellaiset joista pääsee jo joka reunalle
 			// arvo tiili reunalta
 			// arvo sille suunta
@@ -188,19 +299,19 @@ class World {
 			int monesko;
 			do {
 				monesko = (int)(random(0, count)); // monesko jo visitoitu leviää.
-				println("guess #" + monesko + " = " + visitorder[monesko]);
+				//println("guess #" + monesko + " = " + visitorder[monesko]);
 			} while (full(visited, visitorder[monesko]));
 			int idx = visitorder[monesko];
 			int z = idx / (size * size), y = idx / size % size, x = idx % size;
-			println("idx: " + idx + " at " + x + ", " + y + ", " + z);
+			//println("idx: " + idx + " at " + x + ", " + y + ", " + z);
 			
 			// joku vierestä
 			int[] dir = getadj(x, y, z, visited);
-			println("dir: " + dir[0] + ", " + dir[1] + ", " + dir[2]);
+			//println("dir: " + dir[0] + ", " + dir[1] + ", " + dir[2]);
 			
 			int[] newpos = {x+dir[0], y+dir[1], z+dir[2]};
 			int newidx = at(newpos[0], newpos[1], newpos[2]);
-			println("newidx: " + newidx + " at " + newpos[0] + ", " + newpos[1] + ", " + newpos[2]);
+			//println("newidx: " + newidx + " at " + newpos[0] + ", " + newpos[1] + ", " + newpos[2]);
 			
 			// idx==u, newidx==v
 			visitorder[count] = newidx;
@@ -263,7 +374,7 @@ class World {
 			if (y == size-1 && i == 3) ok=false;
 			if (z == size-1 && i == 5) ok=false;
 		} while (!ok || visited[at(x+dirs[i][0], y+dirs[i][1], z+dirs[i][2])]);
-		println("getadj: " + i);
+		//println("getadj: " + i);
 		return dirs[i];
 	}
 	void randgenerate() {
@@ -288,7 +399,7 @@ class World {
 		translate(x, y, z);
 		fill(colo);
 		tcube.draw(0.5);
-		box(1);
+// 		box(1);
 		popMatrix();
 	}
 }
@@ -419,4 +530,111 @@ class XorTex extends TimeTexture {
 		int c = xx ^ yy;
 		return color(c, c, c);
 	}
+}
+
+
+
+
+
+void initializeSphere(int res)
+{
+  sinLUT = new float[SINCOS_LENGTH];
+  cosLUT = new float[SINCOS_LENGTH];
+
+  for (int i = 0; i < SINCOS_LENGTH; i++) {
+    sinLUT[i] = (float) Math.sin(i * DEG_TO_RAD * SINCOS_PRECISION);
+    cosLUT[i] = (float) Math.cos(i * DEG_TO_RAD * SINCOS_PRECISION);
+  }
+
+  float delta = (float)SINCOS_LENGTH/res;
+  float[] cx = new float[res];
+  float[] cz = new float[res];
+  
+  // Calc unit circle in XZ plane
+  for (int i = 0; i < res; i++) {
+    cx[i] = -cosLUT[(int) (i*delta) % SINCOS_LENGTH];
+    cz[i] = sinLUT[(int) (i*delta) % SINCOS_LENGTH];
+  }
+  
+  // Computing vertexlist vertexlist starts at south pole
+  int vertCount = res * (res-1) + 2;
+  int currVert = 0;
+  
+  // Re-init arrays to store vertices
+  sphereX = new float[vertCount];
+  sphereY = new float[vertCount];
+  sphereZ = new float[vertCount];
+  float angle_step = (SINCOS_LENGTH*0.5f)/res;
+  float angle = angle_step;
+  
+  // Step along Y axis
+  for (int i = 1; i < res; i++) {
+    float curradius = sinLUT[(int) angle % SINCOS_LENGTH];
+    float currY = -cosLUT[(int) angle % SINCOS_LENGTH];
+    for (int j = 0; j < res; j++) {
+      sphereX[currVert] = cx[j] * curradius;
+      sphereY[currVert] = currY;
+      sphereZ[currVert++] = cz[j] * curradius;
+    }
+    angle += angle_step;
+  }
+  sDetail = res;
+}
+
+// Generic routine to draw textured sphere
+void texturedSphere(float r, PImage t) 
+{
+  int v1,v11,v2;
+//   r=mouseY/10.0;;
+  beginShape(TRIANGLE_STRIP);
+  texture(t);
+  float iu=(float)(t.width-1)/(sDetail);
+  float iv=(float)(t.height-1)/(sDetail);
+  float u=0,v=iv;
+  for (int i = 0; i < sDetail; i++) {
+    vertex(0, -r, 0,u,0);
+    vertex(sphereX[i]*r, sphereY[i]*r, sphereZ[i]*r, u, v);
+    u+=iu;
+  }
+  vertex(0, -r, 0,u,0);
+  vertex(sphereX[0]*r, sphereY[0]*r, sphereZ[0]*r, u, v);
+  endShape();   
+  
+  // Middle rings
+  int voff = 0;
+  for(int i = 2; i < sDetail; i++) {
+    v1=v11=voff;
+    voff += sDetail;
+    v2=voff;
+    u=0;
+    beginShape(TRIANGLE_STRIP);
+    texture(t);
+    for (int j = 0; j < sDetail; j++) {
+      vertex(sphereX[v1]*r, sphereY[v1]*r, sphereZ[v1++]*r, u, v);
+      vertex(sphereX[v2]*r, sphereY[v2]*r, sphereZ[v2++]*r, u, v+iv);
+      u+=iu;
+    }
+  
+    // Close each ring
+    v1=v11;
+    v2=voff;
+    vertex(sphereX[v1]*r, sphereY[v1]*r, sphereZ[v1]*r, u, v);
+    vertex(sphereX[v2]*r, sphereY[v2]*r, sphereZ[v2]*r, u, v+iv);
+    endShape();
+    v+=iv;
+  }
+  u=0;
+  
+  // Add the northern cap
+  beginShape(TRIANGLE_STRIP);
+  texture(t);
+  for (int i = 0; i < sDetail; i++) {
+    v2 = voff + i;
+    vertex(sphereX[v2]*r, sphereY[v2]*r, sphereZ[v2]*r, u, v);
+    vertex(0, r, 0,u,v+iv);    
+    u+=iu;
+  }
+  vertex(sphereX[voff]*r, sphereY[voff]*r, sphereZ[voff]*r, u, v);
+  endShape();
+  
 }
