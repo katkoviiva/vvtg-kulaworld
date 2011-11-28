@@ -1,3 +1,12 @@
+/*
+ * etäisyydet tilejen välillä aina ykkösiä
+ * tilen säde siis 0.5
+ * kokonaislukukoordinaatti aina tilen keskellä
+ * pelipallon säde 0.5
+ * pelipallo säteen etäisyydellä tilen pinnasta
+ * */
+
+
 import processing.opengl.*;
 int wsize = 3;
 World world;
@@ -70,6 +79,9 @@ void keyPressed ()
    if (key == 'w') cam.move_forward  = true;
    if (key == 's') cam.move_backward = true;
    player.doKbd(key, true);
+   
+   if (key == 'j') player.turn(PI/2/*2 * dt*/); //rot(1 * dt);
+	if (key == 'l') player.turn(-PI/2/*-2 * dt*/);//rot(-1 * dt);
 }
 
 void keyReleased ()
@@ -138,7 +150,9 @@ void draw() {
 	tcube.update();
 	textureMode(NORMALIZED);
 	lights();
-	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -0.5))) ? 0 : color(0, 0, 255));
+	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -1))) ? 0 : color(0, 0, 255));
+// 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.dir, 0.5 + 0.001))) ? 0 : color(0, 0, 255));
+	
 	noStroke();
 	stroke(255);
 	
@@ -192,7 +206,17 @@ class Player {
 	PVector pos, dir, up; // maailmakoordinaatistossa
 	float spd;
 	Kbd kbd = new Kbd();
-	boolean rotated = true;
+	boolean rotated = false;
+	boolean rotating = false;
+	
+	PVector origup, origdir, origpos;
+	float rotanim;
+	
+	float turnang;
+	boolean turning = false;
+	
+	boolean hitrot;
+	
 	Player(PVector p, PVector d, float s, PVector u) {
 		pos = p;
 		dir = d;
@@ -200,8 +224,8 @@ class Player {
 		up = u;
 	}
 	void apply() {
-		PVector e = PVector.sub(pos, PVector.mult(dir, 3));
-		e.add(up);
+		PVector e = PVector.sub(pos, PVector.mult(dir, 4));
+		e.add(PVector.mult(up, 2));
 		int s=100;
 		camera(s*e.x, s*e.y, s*e.z, s*pos.x, s*pos.y, s*pos.z,- up.x, -up.y, -up.z);
 // 		camera(-100, -100, -100,  0, 0, 0,  0, 1, 0);
@@ -209,17 +233,108 @@ class Player {
 	}
 	void update(float dt) {
 		dt /= 1000;
+		if (rotating) {
+			rotanim += dt / 1 * spd;
+			if (rotanim >= 1) {
+				rotating = false;
+				rotanim = 1;
+	/*			
+				PVector axis = origup.cross(origdir);
+				PMatrix3D rotmat = new PMatrix3D();
+				rotmat.rotate(rotanim * PI/2, axis.x, axis.y, axis.z);
+				dir = rotmat.mult(origdir, null);
+				up = rotmat.mult(origup, null);
+				pos = origpos;
+				// EI NÄIN vaan etsi pinnan koordinaatti tasan ja siitä ylös
+				PVector diff = PVector.mult(PVector.add(up, dir), 0.5);
+				pos = PVector.add(origpos, diff);
+*/				
+				// pinnan normaali:
+				// - kuution jonka pääl mennään saa suoraan koordinaateist
+				// - katotaan mil puolel kuutiota koordinaatit on niin saadaan mikä tahko on kyseessä
+				// - yhen tilen tahkon normaali on tasan koordinaattiakselin suuntainen; millä puolella kuutiota ollaan?
+				// - jotenki sijainnin erotus ja siit maksimiakseli ni sen suuntaan ykkösen verran on normi
+
+				// todo: fiksaa paikka iha oikein
+				// tms: pos.add(PVector.mult(up, dt));
+				//return;
+
+			}
+			PVector axis = origup.cross(origdir);
+			if (hitrot) axis.mult(-1);
+			if (spd < 0) axis.mult(-1);
+			PMatrix3D rotmat = new PMatrix3D();
+			rotmat.rotate(rotanim * PI/2, axis.x, axis.y, axis.z);
+			dir = rotmat.mult(origdir, null);
+			up = rotmat.mult(origup, null);
+			PVector diff = PVector.mult(PVector.add(up, dir), rotanim * 0.5);
+			pos = PVector.add(origpos, diff);
+			println(dir.mag());
+			println(up.mag());
+			println(pos);
+			println("");
+		} else if (turning) {
+			rotanim += dt / 0.25;
+			if (rotanim >= 1) {
+				turning = false;
+				rotanim = 1;
+			}
+			dir = origdir;
+			rot(rotanim * turnang);
+		} else {
+			keyboard(dt);
+			hitcheck();
+			dropcheck(dt);
+		}
+	}
+	void hitcheck() {
+		if (world.hasBlk(PVector.add(pos, PVector.mult(dir, 0.5 + 0.001)))) {
+			println("hit");
+			rotating = true;
+			rotanim = 0;
+			origup = up;
+			origdir = dir;
+			origpos = pos;
+			hitrot = true;
+		}
+	}
+	
+	void keyboard(float dt) {
 		if (kbd.buttons['i']) spd += 5 * dt;
 		if (kbd.buttons['k']) spd -= 5 * dt;
-		if (kbd.buttons['j']) rot(1 * dt);
-		if (kbd.buttons['l']) rot(-1 * dt);
+		if (spd < 0) spd = 0;
+// 		if (kbd.buttons['j']) rot(PI/2/*2 * dt*/); //rot(1 * dt);
+// 		if (kbd.buttons['l']) rot(-PI/2/*-2 * dt*/);//rot(-1 * dt);
 
 		//println(dt);
 		//println(dir.x + ", " + dir.y + ", " + dir.z);
 		pos.add(PVector.mult(dir, spd * dt));
+	}
+	void dropcheck(float dt) {
+		if (kbd.buttons['r']) rotated=false;
+		rotated=false;
+		if (rotated) return;
+		// pyörii reunalta yli:
+		// pelipallon keskikohta reunan yli.
+		// laatikon keskipiste kokonaisluvussa
+		// putoaa kun alla ei ole enää kalikkaa
+		// pyöri 90 astetta menosuuntaan youknowhow (animoi!) eli päivitä suunta ja up
+		// MUTTA suunnan pitäs mennä sen alla olevan kalikan pinnan suuntaisesti mikä tapahtuu vaan 90 asteen kävelemises
+		// eli up on pinnan normaali.
+		// nyt alapuolel on palikka; nouse up-vektoria päin abt pinnan etäisyydelle ja siis reunalle
 		
-		if (!rotated && !world.hasBlk(PVector.add(pos, PVector.mult(up, -0.5)))) {
-// 			rotated=true;
+		// -- PURKKA
+		// kuljetaan toistaiseksi vain kohtisuoraan reunoja päin
+		if (!rotated && !world.hasBlk(PVector.add(pos, PVector.mult(up, -1)))) {
+			println("drop");
+			rotated=true;
+			rotating = true;
+			rotanim = 0;
+			origup = up;
+			origdir = dir;
+			origpos = pos;
+			hitrot = false;
+			/*
 			// kierii reunalta; pyöräytä suunta ja up
 			PVector axis = up.cross(dir);
 			PMatrix3D rotmat = new PMatrix3D();
@@ -227,7 +342,14 @@ class Player {
 			dir = rotmat.mult(dir, null);
 			up = rotmat.mult(up, null);
 			pos.add(PVector.mult(up, dt));
+			*/
 		}
+	}
+	void jee(float dt) {
+		PVector turn = up.cross(dir);
+		turn.mult(dt);
+		dir.add(turn);
+		dir.normalize();
 	}
 	void doKbd(char key, boolean state) {
 		kbd.buttons[key] = state;
@@ -237,12 +359,20 @@ class Player {
 		rotmat.rotate(-ang, up.x, up.y, up.z);
 		dir = rotmat.mult(dir, null);
 	}
+	void turn(float ang) {
+		if (rotating || turning) return;
+		turning = true;
+		origdir = dir;
+		turnang = ang;
+		rotanim = 0;
+	}
 	void draw() {
 		pushMatrix();
 		translate(pos.x, pos.y, pos.z);
-// 		textureMode(IMAGE);  
-// 		texturedSphere(0.5, texmap);
-		tcube.draw(0.5);
+ 		textureMode(IMAGE);  
+ 		texturedSphere(0.5, texmap);
+		fill(100, 100, 100, 200);
+// 		tcube.draw(0.5);
 		popMatrix();
 	}
 }
@@ -259,14 +389,15 @@ class World {
 
 	}
 	boolean hasBlk(PVector point) {
-		int x = (int)(point.x); // round
-		int y = (int)(point.y);
-		int z = (int)(point.z);
-		println("has? " + point.x + " " + point.y + " " + point.z);
+		int x = round(point.x); // round
+		int y = round(point.y);
+		int z = round(point.z);
+		//println("has? " + point.x + " " + point.y + " " + point.z);
 		return x >= 0 && y >= 0 && z >= 0 
 			&& x < size && y < size && z < size 
 			&& map[at(x, y, z)] != 0;
 	}
+	// prim's algorithm
 	void generate() {
 		//map=null;
 		//map[0]=0;// rivi 146
@@ -395,6 +526,8 @@ class World {
 		int colo = map[size * size * z + size * y + x];
 		//println(colo);
 		if (colo == 0) return;
+		PVector bottomidx = PVector.add(player.pos, PVector.mult(player.up, -1));
+		if (x == round(bottomidx.x) && y == round(bottomidx.y) && z == round(bottomidx.z)) colo = color(255, 255, 255, 100);
 		pushMatrix();
 		translate(x, y, z);
 		fill(colo);
