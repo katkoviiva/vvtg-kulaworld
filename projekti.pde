@@ -16,6 +16,11 @@ Player player;
 
 void keyPressed () {
 	player.pressKey(key);
+	if (key == PApplet.CODED) println(keyCode);
+// 	println(key);
+// 	println((int)key);
+// 	println(keyCode);
+// 	println("Moi");
 }
 
 void keyReleased () {

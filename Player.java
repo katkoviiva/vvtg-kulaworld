@@ -7,6 +7,7 @@ public class Player {
 	float spd;
 	PMatrix3D rotstate = new PMatrix3D();
 	World world;
+	float speed = 1;
 	
 	LinkedList<Integer> keyHistory = new LinkedList<Integer>();
 	
@@ -24,7 +25,7 @@ public class Player {
 			time = 0;
 		}
 		boolean run(float dt) {
-			time += dt;
+			time += dt * speed;
 			if (time > 1) time = 1;
 			animate(time);
 			return time != 1;
@@ -47,19 +48,6 @@ public class Player {
 		int where;
 		FallRotation(int w) { super(); where = w; }
 		void animate(float time) {
-			// EI NÄIN vaan etsi pinnan koordinaatti tasan ja siitä ylös
-			//PVector diff = PVector.mult(PVector.add(up, dir), 0.5);
-			//pos = PVector.add(origpos, diff);
-			// pinnan normaali:
-			// - kuution jonka pääl mennään saa suoraan koordinaateist
-			// - katotaan mil puolel kuutiota koordinaatit on niin saadaan mikä tahko on kyseessä
-			// - yhen tilen tahkon normaali on tasan koordinaattiakselin suuntainen; millä puolella kuutiota ollaan?
-			// - jotenki sijainnin erotus ja siit maksimiakseli ni sen suuntaan ykkösen verran on normi
-
-			// todo: fiksaa paikka iha oikein
-			// tms: pos.add(PVector.mult(up, dt));
-			//return;
-
 			PVector axis = oup.cross(odir);
 			axis.mult(where);
 			PMatrix3D rotmat = new PMatrix3D();
@@ -136,29 +124,45 @@ public class Player {
 		if (key == 'k') walk(-1);
 		if (key == 'j') turn((float)Math.PI/2);
 		if (key == 'l') turn(-(float)Math.PI/2);
+		if (key == 'i' - 'a' + 1) superwalk(1);
+		if (key == 'k' - 'a' + 1) superwalk(-1);
+		if (key == 'f') speed = 10;
+		if (key == 's') speed = 1;
 	}
 	
-	void keyboard(float dt) {
+	void superwalk(int where) {
+		int w = where < 0 ? -1 : 1;
+		keyHistory.add((int)'f');
+		for (int i = 1; ; i++) {
+			PVector dest = PVector.add(pos, PVector.mult(dir, w * i));
+			if (hitCheck(dest, where, false) || dropCheck(dest, where, false)) {
+				if (i == 1) keyHistory.add(where < 0 ? (int)'k' : (int)'i');
+				break;
+			}
+// 			System.out.println(i);
+			keyHistory.add(where < 0 ? (int)'k' : (int)'i');
+		}
+		keyHistory.add((int)'s');
 	}
-	
+
 	void walk(int where) {
 		PVector dest = PVector.add(pos, PVector.mult(dir, where));
-		if (hitCheck(dest, where)) return;
-		if (dropCheck(dest, where)) return;
+		if (hitCheck(dest, where, true)) return;
+		if (dropCheck(dest, where, true)) return;
 		animation = new Walk(where);
 	}
 	
-	boolean dropCheck(PVector p, int where) {
+	boolean dropCheck(PVector p, int where, boolean anim) {
 		if (!world.hasBlk(PVector.add(p, PVector.mult(up, -1)))) {
-			animation = new FallRotation(where);
+			if (anim) animation = new FallRotation(where);
 			return true;
 		}
 		return false;
 	}
 	
-	boolean hitCheck(PVector p, int where) {
+	boolean hitCheck(PVector p, int where, boolean anim) {
 		if (world.hasBlk(p)) {
-			animation = new HitRotation(where);
+			if (anim) animation = new HitRotation(where);
 			return true;
 		}
 		return false;
