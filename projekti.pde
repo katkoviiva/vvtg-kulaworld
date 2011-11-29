@@ -6,6 +6,7 @@
  * pelipallo säteen etäisyydellä tilen pinnasta
  * */
 
+import java.util.*;
 
 import processing.opengl.*;
 int wsize = 3;
@@ -79,9 +80,7 @@ void keyPressed ()
    if (key == 'w') cam.move_forward  = true;
    if (key == 's') cam.move_backward = true;
    player.doKbd(key, true);
-   
-   if (key == 'j') player.turn(PI/2/*2 * dt*/); //rot(1 * dt);
-	if (key == 'l') player.turn(-PI/2/*-2 * dt*/);//rot(-1 * dt);
+   player.pressKey(key);
 }
 
 void keyReleased ()
@@ -210,12 +209,44 @@ class Player {
 	boolean rotating = false;
 	
 	PVector origup, origdir, origpos;
-	float rotanim;
+	float animtime;
 	
 	float turnang;
 	boolean turning = false;
 	
 	boolean hitrot;
+	
+	boolean walking = false;
+	LinkedList<Integer> keyHistory = new LinkedList<Integer>();
+	
+	abstract class Animation {
+		PVector opos, odir, oup;
+		float time;
+		abstract void animate(/*Player player*/float time);
+		void start() {
+			opos = PVector.mult(pos, 1);
+			odir = PVector.mult(dir, 1);
+			oup = PVector.mult(up, 1);
+			time = 0;
+		}
+		boolean run(float dt) {
+			time += dt;
+			if (time > 1) time = 1;
+			animate(time);
+			return time != 1;
+		}
+	}
+	class Walk extends Animation {
+		void animate(float time) {
+			
+		}
+	}
+	class Rotation extends Animation {
+		void animate(float time) {
+		}
+	}
+	
+	Animation animation = null;
 	
 	Player(PVector p, PVector d, float s, PVector u) {
 		pos = p;
@@ -233,15 +264,47 @@ class Player {
 	}
 	void update(float dt) {
 		dt /= 1000;
-		if (rotating) {
-			rotanim += dt / 1 * spd;
-			if (rotanim >= 1) {
+		if (animation != null) {
+			if (animation.run(dt)) {
+				animation = null;
+			}
+		}
+		if (walking) {
+			animtime += dt / 0.5 * spd;
+			if (animtime >= 1) {
+				animtime = 1;
+				walking = false;
+			}
+			pos = PVector.add(origpos, PVector.mult(dir, animtime));
+		} else if (hitrot) {
+			animtime += dt / 1 * spd;
+			if (animtime >= 1) {
 				rotating = false;
-				rotanim = 1;
+				animtime = 1;
+			}
+			PVector axis = origup.cross(origdir);
+			axis.mult(-1);
+			PMatrix3D rotmat = new PMatrix3D();
+			rotmat.rotate(animtime * PI/2, axis.x, axis.y, axis.z);
+			dir = rotmat.mult(origdir, null);
+			up = rotmat.mult(origup, null);
+			/*PVector diff = PVector.mult(PVector.add(up, dir), animtime * 0.5);
+			pos = PVector.add(origpos, diff);*/
+			// TODO: pyöristä täällä lopuksi (animtime==1) nuo niin ettei mee tippaakaan vinoon
+			println(dir.mag());
+			println(up.mag());
+			println(pos);
+			println("");
+		} else if (rotating) {
+			// TODO: animaattoriluokkia jotka varastoi old* ja .apply(Player p, float time)
+			animtime += dt / 1 * spd;
+			if (animtime >= 1) {
+				rotating = false;
+				animtime = 1;
 	/*			
 				PVector axis = origup.cross(origdir);
 				PMatrix3D rotmat = new PMatrix3D();
-				rotmat.rotate(rotanim * PI/2, axis.x, axis.y, axis.z);
+				rotmat.rotate(animtime * PI/2, axis.x, axis.y, axis.z);
 				dir = rotmat.mult(origdir, null);
 				up = rotmat.mult(origup, null);
 				pos = origpos;
@@ -261,59 +324,71 @@ class Player {
 
 			}
 			PVector axis = origup.cross(origdir);
-			if (hitrot) axis.mult(-1);
 			if (spd < 0) axis.mult(-1);
 			PMatrix3D rotmat = new PMatrix3D();
-			rotmat.rotate(rotanim * PI/2, axis.x, axis.y, axis.z);
+			rotmat.rotate(animtime * PI/2, axis.x, axis.y, axis.z);
 			dir = rotmat.mult(origdir, null);
 			up = rotmat.mult(origup, null);
-			PVector diff = PVector.mult(PVector.add(up, dir), rotanim * 0.5);
+			PVector diff = PVector.mult(PVector.add(up, dir), animtime);
 			pos = PVector.add(origpos, diff);
 			println(dir.mag());
 			println(up.mag());
 			println(pos);
 			println("");
+			println("rotrot");
 		} else if (turning) {
-			rotanim += dt / 0.25;
-			if (rotanim >= 1) {
+			animtime += dt / 0.25;
+			if (animtime >= 1) {
 				turning = false;
-				rotanim = 1;
+				animtime = 1;
 			}
 			dir = origdir;
-			rot(rotanim * turnang);
+			rot(animtime * turnang);
 		} else {
-			keyboard(dt);
-			hitcheck();
-			dropcheck(dt);
+			if (!keyHistory.isEmpty()) {
+				processKey(keyHistory.removeFirst());
+			}
+			//keyboard(dt);
+			//hitcheck();
+			//dropcheck(dt);
 		}
 	}
-	void hitcheck() {
-		if (world.hasBlk(PVector.add(pos, PVector.mult(dir, 0.5 + 0.001)))) {
+	boolean hitCheck(PVector p) {
+		if (world.hasBlk(p)) {
 			println("hit");
-			rotating = true;
-			rotanim = 0;
+			animtime = 0;
 			origup = up;
 			origdir = dir;
 			origpos = pos;
 			hitrot = true;
+			return true;
 		}
+		return false;
+	}
+	
+	void pressKey(char key) {
+		keyHistory.addLast((int)key);
+	}
+	void processKey(int key) {
+		if (key == 'i') walk(1);
+		if (key == 'k') walk(-1);
+		if (key == 'j') turn(PI/2/*2 * dt*/); //rot(1 * dt);
+		if (key == 'l') turn(-PI/2/*-2 * dt*/);//rot(-1 * dt);
 	}
 	
 	void keyboard(float dt) {
-		if (kbd.buttons['i']) spd += 5 * dt;
-		if (kbd.buttons['k']) spd -= 5 * dt;
-		if (spd < 0) spd = 0;
-// 		if (kbd.buttons['j']) rot(PI/2/*2 * dt*/); //rot(1 * dt);
-// 		if (kbd.buttons['l']) rot(-PI/2/*-2 * dt*/);//rot(-1 * dt);
-
-		//println(dt);
-		//println(dir.x + ", " + dir.y + ", " + dir.z);
-		pos.add(PVector.mult(dir, spd * dt));
 	}
-	void dropcheck(float dt) {
-		if (kbd.buttons['r']) rotated=false;
-		rotated=false;
-		if (rotated) return;
+	
+	void walk(int where) {
+		PVector dest = PVector.add(pos, PVector.mult(dir, where));
+		if (hitCheck(dest)) return;
+		if (dropCheck(dest)) return;
+		walking = true;
+		origpos = pos;
+		animtime = 0;
+	}
+	
+	boolean dropCheck(PVector p) {
 		// pyörii reunalta yli:
 		// pelipallon keskikohta reunan yli.
 		// laatikon keskipiste kokonaisluvussa
@@ -325,46 +400,35 @@ class Player {
 		
 		// -- PURKKA
 		// kuljetaan toistaiseksi vain kohtisuoraan reunoja päin
-		if (!rotated && !world.hasBlk(PVector.add(pos, PVector.mult(up, -1)))) {
+		if (!rotated && !world.hasBlk(PVector.add(p, PVector.mult(up, -1)))) {
 			println("drop");
-			rotated=true;
+// 			rotated=true;
 			rotating = true;
-			rotanim = 0;
+			animtime = 0;
 			origup = up;
 			origdir = dir;
 			origpos = pos;
-			hitrot = false;
-			/*
-			// kierii reunalta; pyöräytä suunta ja up
-			PVector axis = up.cross(dir);
-			PMatrix3D rotmat = new PMatrix3D();
-			rotmat.rotate(PI/2, axis.x, axis.y, axis.z);
-			dir = rotmat.mult(dir, null);
-			up = rotmat.mult(up, null);
-			pos.add(PVector.mult(up, dt));
-			*/
+			return true;
 		}
+		return false;
 	}
-	void jee(float dt) {
-		PVector turn = up.cross(dir);
-		turn.mult(dt);
-		dir.add(turn);
-		dir.normalize();
-	}
+	
 	void doKbd(char key, boolean state) {
 		kbd.buttons[key] = state;
 	}
+	
 	void rot(float ang) {
 		PMatrix3D rotmat = new PMatrix3D();
 		rotmat.rotate(-ang, up.x, up.y, up.z);
 		dir = rotmat.mult(dir, null);
 	}
+	
 	void turn(float ang) {
 		if (rotating || turning) return;
 		turning = true;
 		origdir = dir;
 		turnang = ang;
-		rotanim = 0;
+		animtime = 0;
 	}
 	void draw() {
 		pushMatrix();
@@ -530,6 +594,7 @@ class World {
 		if (x == round(bottomidx.x) && y == round(bottomidx.y) && z == round(bottomidx.z)) colo = color(255, 255, 255, 100);
 		pushMatrix();
 		translate(x, y, z);
+		colo = (colo & 0xffffff) | 0x7f000000;
 		fill(colo);
 		tcube.draw(0.5);
 // 		box(1);
