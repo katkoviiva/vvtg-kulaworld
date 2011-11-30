@@ -35,7 +35,6 @@ public class Player {
 		float spd;
 		Walk(float s) { super(); spd = s; }
 		void animate(float time) {
-			System.out.println(time);
 			pos = PVector.add(opos, PVector.mult(odir, spd * time));
 			PMatrix3D mat = new PMatrix3D();
 			mat.rotate(spd * time * (float)Math.PI / 2, 1, 0, 0);
@@ -118,16 +117,19 @@ public class Player {
 	}
 	void pressKey(char key) {
 		keyHistory.addLast((int)key);
+		if (key == ' ') keyHistory.clear();
 	}
 	void processKey(int key) {
-		if (key == 'i') walk(1);
-		if (key == 'k') walk(-1);
-		if (key == 'j') turn((float)Math.PI/2);
-		if (key == 'l') turn(-(float)Math.PI/2);
-		if (key == 'i' - 'a' + 1) superwalk(1);
-		if (key == 'k' - 'a' + 1) superwalk(-1);
-		if (key == 'f') speed = 10;
-		if (key == 's') speed = 1;
+		switch (key) {
+			case 'i': walk(1); break;
+			case 'k': walk(-1); break;
+			case 'j': turn((float)Math.PI/2); break;
+			case 'l': turn(-(float)Math.PI/2); break;
+			case 'i' - 'a' + 1: superwalk(1); break;
+			case 'k' - 'a' + 1: superwalk(-1); break;
+			case 'f': speed = 10; break;
+			case 's': speed = 1; break;
+		}
 	}
 	
 	void superwalk(int where) {
@@ -139,7 +141,6 @@ public class Player {
 				if (i == 1) keyHistory.add(where < 0 ? (int)'k' : (int)'i');
 				break;
 			}
-// 			System.out.println(i);
 			keyHistory.add(where < 0 ? (int)'k' : (int)'i');
 		}
 		keyHistory.add((int)'s');

@@ -8,29 +8,12 @@
 
 import java.util.*;
 import processing.opengl.*;
+import saito.objloader.*;
 
 final int wsize = 4;
 World world;
 Player player;
 // TexCube tcube;
-
-void keyPressed () {
-	player.pressKey(key);
-	if (key == PApplet.CODED) println(keyCode);
-// 	println(key);
-// 	println((int)key);
-// 	println(keyCode);
-// 	println("Moi");
-}
-
-void keyReleased () {
-}
-void mouseDragged() {
-/*	PVector mouseDiff = PVector.sub(new PVector(mouseX, mouseY), new PVector(pmouseX, pmouseY));
-	cam.phi += 2 * PI * mouseDiff.x / width;
-	cam.theta -= PI * mouseDiff.y / height;*/
-	//cam.theta = constrain(cam.theta - PI * mouseDiff.y / height, -PI / 2, PI / 16);
-}
 
 PImage texmap;
 
@@ -41,8 +24,12 @@ float sinLUT[];
 float cosLUT[];
 float SINCOS_PRECISION = 0.5;
 int SINCOS_LENGTH = int(360.0 / SINCOS_PRECISION);
+float lasttime = 0;
 
 PImage grass;
+GameObject coin;
+
+PFont font;
 
 void setup() {
 	size(800, 600, OPENGL);
@@ -59,10 +46,26 @@ void setup() {
 	initializeSphere(sDetail);
 	grass = loadImage("Seamless_grass_texture_by_hhh316.jpeg");
 	world.boxTex(grass);
+	OBJModel mdl = new OBJModel(this, "kolikko.obj", "absolute" /* relative */, PApplet.POLYGON);
+	coin = new GameObject(this, mdl, new PVector(-1,0,3));
+	font = createFont("Courier", 20, true);
+	println(PFont.list());
 }
-float lasttime = 0;
+void keyPressed () {
+	player.pressKey(key);
+}
+
+void keyReleased () {
+}
+void mouseDragged() {
+/*	PVector mouseDiff = PVector.sub(new PVector(mouseX, mouseY), new PVector(pmouseX, pmouseY));
+	cam.phi += 2 * PI * mouseDiff.x / width;
+	cam.theta -= PI * mouseDiff.y / height;*/
+	//cam.theta = constrain(cam.theta - PI * mouseDiff.y / height, -PI / 2, PI / 16);
+}
 void draw() {
 // 	tcube.update();
+	background(0);
 	
 	if (lasttime != 0) player.update((millis() - lasttime) / 1000.0);
 	lasttime = millis();
@@ -70,7 +73,7 @@ void draw() {
 // scale(100);	pointLight(255, 255, 255, player.pos.x-player.up.x, player.pos.y-player.up.y, player.pos.z-player.up.z);
 	player.apply(this);
 	textureMode(NORMALIZED);
-	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -1))) ? 0 : color(0, 0, 255));
+// 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -1))) ? 0 : color(0, 0, 255));
 // 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.dir, 0.5 + 0.001))) ? 0 : color(0, 0, 255));
 
 	scale(100);
@@ -86,6 +89,12 @@ void draw() {
 	
 	stroke(255);noStroke();
 	world.draw(this);
+	coin.draw();
+
+	textFont(font);
+
+	textMode(SCREEN);
+	text("Hei moi tättädää", 10, 20);
 }
 
 

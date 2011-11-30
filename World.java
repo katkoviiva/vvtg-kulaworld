@@ -14,7 +14,6 @@ public class World {
 		int x = PApplet.round(point.x); // round
 		int y = PApplet.round(point.y);
 		int z = PApplet.round(point.z);
-		//println("has? " + point.x + " " + point.y + " " + point.z);
 		return x >= 0 && y >= 0 && z >= 0 
 			&& x < size && y < size && z < size 
 			&& map[at(x, y, z)] != 0;
@@ -38,7 +37,6 @@ public class World {
 	}
 	void dobox(PApplet pa, int x, int y, int z) {
 		int colo = map[size * size * z + size * y + x];
-		//println(colo);
 		if (colo == 0) return;
 		//PVector bottomidx = PVector.add(player.pos, PVector.mult(player.up, -1));
 		//if (x == round(bottomidx.x) && y == round(bottomidx.y) && z == round(bottomidx.z)) colo = color(255, 255, 255, 250);
