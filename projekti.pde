@@ -10,7 +10,7 @@ import java.util.*;
 import processing.opengl.*;
 import saito.objloader.*;
 
-final int wsize = 4;
+final int wsize = 3; // 3x3 grid
 World world;
 Player player;
 // TexCube tcube;
@@ -30,6 +30,8 @@ PImage grass, pltex;
 ArrayList<GameObject> coins = new ArrayList<GameObject>();
 
 PFont font;
+
+float mapx, mapy;
 
 void setup() {
 	size(800, 600, OPENGL);
@@ -59,6 +61,10 @@ void setup() {
 }
 void keyPressed () {
 	player.pressKey(key);
+	if (key == 's') mapx -= PI/40;
+	if (key == 'w') mapx += PI/40;
+	if (key == 'a') mapy -= PI/40;
+	if (key == 'd') mapy += PI/40;
 }
 
 void keyReleased () {
@@ -69,53 +75,85 @@ void mouseDragged() {
 	cam.theta -= PI * mouseDiff.y / height;*/
 	//cam.theta = constrain(cam.theta - PI * mouseDiff.y / height, -PI / 2, PI / 16);
 }
+
+GameObject animobj = null;
+int animstart;
+
 void draw() {
+	update();
+	render();
+}
+
+void update() {
 // 	tcube.update();
 	background(0);
 	
 	for (GameObject c: coins) {
 		if (PVector.sub(player.pos, c.pos).mag() < 0.001) {
 			println("Hohoo" + PVector.sub(player.pos, c.pos).mag());
+			animobj = c;
+			animstart = millis();
 			coins.remove(c);
 			break;
 		}
 	}
 	if (lasttime != 0) player.update((millis() - lasttime) / 1000.0);
 	lasttime = millis();
+}
 
-	player.apply(this);
+void render() {
 	textureMode(NORMALIZED);
-// 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -1))) ? 0 : color(0, 0, 255));
-// 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.dir, 0.5 + 0.001))) ? 0 : color(0, 0, 255));
-
+	player.apply(this);
 	scale(100);
 	
+// 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -1))) ? 0 : color(0, 0, 255));
+// 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.dir, 0.5 + 0.001))) ? 0 : color(0, 0, 255));
+	background(0);
+	
 	ambientLight(70, 70, 70);
-// 	ambientLight(255,255,255);
-// 	pointLight(255, 255, 255, player.pos.x-player.up.x, player.pos.y-player.up.y, player.pos.z-player.up.z);
-	lightFalloff(0.1, 0.0, 0.001);
+	lightFalloff(0.1, 0.0, 0.0002);
 	spotLight(255, 255, 255, player.pos.x+player.dir.x, player.pos.y+player.dir.y, player.pos.z+player.dir.z, player.dir.x, player.dir.y, player.dir.z, PI/4, 10);
 // 	spotLight(255, 255, 255, player.pos.x+player.up.x, player.pos.y+player.up.y, player.pos.z+player.up.z, player.dir.x, player.dir.y, player.dir.z, PI/4, 1);
 // 	pointLight(255, 255, 255, player.pos.x+player.dir.x, player.pos.y+player.dir.y, player.pos.z+player.dir.z);
 // 	pointLight(255, 255, 255, player.pos.x+player.up.x, player.pos.y+player.up.y, player.pos.z+player.up.z);
 
-	noStroke();
-//	fill(100, 100, 100, 100);
-	fill(255, 255, 255, 255);
 	stroke(100);
+	fill(255, 255, 255, 255);
 	player.draw(this, pltex);
 	
-	stroke(255);noStroke();
+	noStroke();
 	world.draw(this);
-	for (GameObject obj: coins) obj.draw();
+	
+	for (GameObject obj: coins) obj.draw(1);
+	
+	if (animobj != null) {
+		float time = (millis()-animstart)/1000.0;
+		PVector pp = animobj.pos;
+		animobj.pos = PVector.add(pp, PVector.mult(animobj.up, 2*time));
+		animobj.draw(3);
+		animobj.pos = pp;
+		if (time >= 2) animobj = null;
+	}
+hint(DISABLE_DEPTH_TEST);
+	resetMatrix();
+	noLights();
+	stroke(255);
+	scale(4);
+	translate(16, 16, -50);
+	rotateX(mapx);
+	rotateY(mapy);
+	rotateZ(millis()/1000.0);
+	translate(-world.size/2, -world.size/2, -world.size/2);
+	world.draw(this);
+hint(ENABLE_DEPTH_TEST);
 
 	textFont(font);
-
 	textMode(SCREEN);
 	fill(255);
 	text("Coins: " + coins.size(), 10, 20);
 	text("fps: " + frameRate, 10, 40);
 	text("pos: (" + player.pos.x + ", " + player.pos.y + ", " + player.pos.z + "), sz=" + world.size, 10, 60);
+	
 }
 
 
