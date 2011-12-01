@@ -8,6 +8,7 @@ public class Player {
 	World world;
 	static final float normalspeed = 2;
 	float speed = normalspeed;
+	int steps;
 	
 	LinkedList<Integer> keyHistory = new LinkedList<Integer>();
 	
@@ -149,6 +150,7 @@ public class Player {
 	}
 
 	void walk(int where) {
+		if (steps >= 0) steps++;
 		PVector dest = PVector.add(pos, PVector.mult(dir, where));
 		if (hitCheck(dest, where, true)) return;
 		if (dropCheck(dest, where, true)) return;
@@ -179,9 +181,10 @@ public class Player {
 	}
 	
 	void turn(float ang) {
+		if (steps >= 0) steps++;
 		animation = new Turn(ang);
 	}
-	void draw(PApplet pa, PImage tex) {
+	void draw(PGraphics pa, PImage tex) {
 		pa.pushMatrix();
 		pa.translate(pos.x, pos.y, pos.z);
 		PVector x = up.cross(dir);

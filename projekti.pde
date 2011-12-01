@@ -31,7 +31,9 @@ ArrayList<GameObject> coins = new ArrayList<GameObject>();
 
 PFont font;
 
-float mapx, mapy;
+float mapx, mapy, mapz;
+
+int playertime;
 
 void setup() {
 	size(800, 600, OPENGL);
@@ -59,21 +61,101 @@ void setup() {
 	font = createFont("Courier", 20, true);
 // 	println(PFont.list());
 }
+PMatrix3D rotmat(float a, float x, float y, float z) {
+	PMatrix3D mat = new PMatrix3D();
+	mat.rotate(a, x, y, z);
+	return mat;
+}
 void keyPressed () {
 	player.pressKey(key);
-	if (key == 's') mapx -= PI/40;
-	if (key == 'w') mapx += PI/40;
-	if (key == 'a') mapy -= PI/40;
-	if (key == 'd') mapy += PI/40;
+	if (key == 's') camera.preApply(rotmat(-PI/40, 1, 0, 0));//mapx -= PI/40;
+	if (key == 'w') camera.preApply(rotmat(PI/40, 1, 0, 0));//mapx += PI/40;
+	if (key == 'a') camera.preApply(rotmat(-PI/40, 0, 1, 0));//mapy -= PI/40;
+	if (key == 'd') camera.preApply(rotmat(PI/40, 0, 1, 0));//mapy += PI/40;
+	if (key == 'q') camera.preApply(rotmat(-PI/40, 0, 0, 1));//mapz -= PI/40;
+	if (key == 'e') camera.preApply(rotmat(PI/40, 0, 0, 1));//mapz += PI/40;
 }
 
-void keyReleased () {
+
+
+
+
+PMatrix3D camera = new PMatrix3D();
+// hiiripyörittelyolio joka muistaa hiiren aloituspaikan
+MouseRotation rotation = new MouseRotation();
+
+
+void mousePressed() {
+	startDrag(new PVector(mouseX, mouseY));
 }
 void mouseDragged() {
-/*	PVector mouseDiff = PVector.sub(new PVector(mouseX, mouseY), new PVector(pmouseX, pmouseY));
-	cam.phi += 2 * PI * mouseDiff.x / width;
-	cam.theta -= PI * mouseDiff.y / height;*/
-	//cam.theta = constrain(cam.theta - PI * mouseDiff.y / height, -PI / 2, PI / 16);
+	drag(new PVector(mouseX, mouseY));
+}
+
+PMatrix3D lastCamera;
+// klikkaa pyöritys alkamaan hiiren nykypisteestä
+void startDrag(PVector mouse) {
+	lastCamera = new PMatrix3D(camera);
+	rotation.start(mouse);
+}
+// laske pyörityskulma ja -akseli, muodosta pyöritysmatriisi,
+// kerro pyöritysmatriisilla sijainti joka oli kun hiiri painettiin pohjaan,
+// ja sijoita tulos nykykameramatriisiksi
+void drag(PVector mouse) {
+	float[] rot = new float[4];
+	rotation.drag(mouse, rot);
+	camera.reset();
+	camera.rotate(3*rot[0], rot[1], rot[2], rot[3]);
+	camera.apply(lastCamera);
+}
+
+class MouseRotation {
+	private PVector start, end;
+	// mappaa näyttöpiste kuvittellisen pallon (oikeastaan ellipsoidin) pinnalle
+	// pallo on ykkösen etäisyydellä näytöstä ja näytön kulmat "koskettavat" pintaa
+	PVector findPoint(PVector screenPt) {
+		// hiirellä raahaus toimii ikkunan sisällä nurkkiin saakka
+		// muuten rajoitetaan arvot jos raahataan hiirtä ulkopuolelle
+		float diag = dist(0, 0, width, height) / 2;
+		// mappaa parametrit siten, että keskikohta on origo ja pituus 1 on ikkunan nurkassa
+		float x = (constrain(screenPt.x, 0, width - 1) - width / 2) / diag;
+		float y = (constrain(screenPt.y, 0, height - 1) - height / 2) / diag;
+		PVector scaled = new PVector(x, y);
+		float len = scaled.mag();
+		assert(len <= 1);
+		scaled.z = sqrt(1 - len * len); // nyt meillä on yksikkövektori
+		return scaled;
+	}
+	
+	// etsi alkupiste pinnalta ja laita talteen
+	void start(PVector mouse) {
+		start = findPoint(mouse);
+	}
+	
+	// laske pyöritysakseli ja -kulma
+	void drag(PVector mouse, float[] rot) {
+		end = findPoint(mouse);
+		// akseli on kohtisuorassa sellaisia vektoreita vasten, jotka kulkevat
+		// pallon keskipisteestä alun ja lopun pintapisteille
+		PVector axis = start.cross(end);
+		axis.normalize(); // ellei yksikkövektori niin processingin matriisi.rotate sekoaa
+		rot[0] = acos(start.dot(end));
+		rot[1] = axis.x;
+		rot[2] = axis.y;
+		rot[3] = axis.z;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+void keyReleased () {
 }
 
 GameObject animobj = null;
@@ -94,13 +176,17 @@ void update() {
 			animobj = c;
 			animstart = millis();
 			coins.remove(c);
+			if (coins.size() == 0) {
+				playertime = millis();
+				player.steps = -player.steps;
+			}
 			break;
 		}
 	}
 	if (lasttime != 0) player.update((millis() - lasttime) / 1000.0);
 	lasttime = millis();
 }
-
+PMatrix3D mapState = new PMatrix3D();
 void render() {
 	textureMode(NORMALIZED);
 	player.apply(this);
@@ -119,24 +205,75 @@ void render() {
 
 	stroke(100);
 	fill(255, 255, 255, 255);
-	player.draw(this, pltex);
+	player.draw(g, pltex);
 	
 	noStroke();
-	world.draw(this);
+	world.draw(g);
 	
-	for (GameObject obj: coins) obj.draw(1);
+	for (GameObject obj: coins) obj.draw(g, 1);
 	
 	if (animobj != null) {
 		float time = (millis()-animstart)/1000.0;
 		PVector pp = animobj.pos;
 		animobj.pos = PVector.add(pp, PVector.mult(animobj.up, 2*time));
-		animobj.draw(3);
+		animobj.draw(g, 3);
 		animobj.pos = pp;
 		if (time >= 2) animobj = null;
 	}
-hint(DISABLE_DEPTH_TEST);
+	
+	PGraphics3D juttu = new PGraphics3D();
 	resetMatrix();
 	noLights();
+	PGraphics pg;
+	pg = createGraphics(width/2, height/2, P3D);
+	pg.beginDraw();
+	pg.background(0);
+	pg.stroke(255);
+	pg.noStroke();
+	pg.fill(255);
+	pg.translate(pg.width/2,pg.height/2, 0);
+	pg.scale(10);
+	/*pg.rotateX(mapx);
+	pg.rotateY(mapy);
+	pg.rotateZ(mapz);//millis()/10000.0);*/
+	pg.applyMatrix(/*mapState*/camera);
+	pg.translate(-world.size/2, -world.size/2, -world.size/2);
+
+	world.draw(pg);
+	if (millis() % 500 < 250) world.dobox(pg, player.pos, color(255, 255, 255));
+	for (GameObject obj: coins) {
+		PVector pos = PVector.sub(obj.pos, obj.up);
+		if (world.hasBlk(pos)) {
+			world.dobox(pg, pos, color(255, 0, 0));
+		}
+	}
+	pg.endDraw();
+	
+	hint(DISABLE_DEPTH_TEST);
+	textureMode(IMAGE);
+	resetMatrix();
+	translate(50,10, -200);
+	stroke(255);
+	fill(255,255,255,10);
+	beginShape(QUADS);
+	texture(pg);
+	int w=100;
+	int h=100;
+	vertex(0, 0, 0,  0, 0);
+	vertex(w, 0, 0,  pg.width, 0);
+	vertex(w, h, 0, pg.width, pg.height);
+	vertex(0, h, 0,  0, pg.height);
+	endShape(); 
+	
+	resetMatrix();
+	translate(0,0,-1000);
+	TexCube t = new TexCube();
+	/*rotateX(millis()/1000.0);
+	rotateY(millis()/200.0);
+	rotateZ(millis()/500.0);*/
+// 	t.draw(this, pg, 100.5f);
+	resetMatrix();
+	
 	stroke(255);
 	scale(4);
 	translate(16, 16, -50);
@@ -144,8 +281,11 @@ hint(DISABLE_DEPTH_TEST);
 	rotateY(mapy);
 	rotateZ(millis()/1000.0);
 	translate(-world.size/2, -world.size/2, -world.size/2);
-	world.draw(this);
-hint(ENABLE_DEPTH_TEST);
+// 	world.draw(g);
+// 	TexCube tt = new TexCube();
+// 	tt.draw(g, pg, 0.5f);
+	
+	hint(ENABLE_DEPTH_TEST);
 
 	textFont(font);
 	textMode(SCREEN);
@@ -153,6 +293,7 @@ hint(ENABLE_DEPTH_TEST);
 	text("Coins: " + coins.size(), 10, 20);
 	text("fps: " + frameRate, 10, 40);
 	text("pos: (" + player.pos.x + ", " + player.pos.y + ", " + player.pos.z + "), sz=" + world.size, 10, 60);
+	text("time: " + (playertime != 0 ? playertime/1000.0 : millis() / 1000.0) + ", steps: " + abs(player.steps), 10, 80);
 	
 }
 

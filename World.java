@@ -28,7 +28,7 @@ public class World {
 	int at(PVector p) {
 		return at(PApplet.round(p.x), PApplet.round(p.y), PApplet.round(p.z));
 	}
-	void draw(PApplet pa) {
+	void draw(PGraphics pa) {
 		pa.pushMatrix();
 		for (int z = 0; z < size; z++) {
 			for (int y = 0; y < size; y++) {
@@ -39,19 +39,22 @@ public class World {
 		}
 		pa.popMatrix();
 	}
-	void dobox(PApplet pa, int x, int y, int z) {
-		int colo = map[size * size * z + size * y + x];
+	void dobox(PGraphics pa, PVector p, int color) {
+		dobox(pa, PApplet.round(p.x), PApplet.round(p.y), PApplet.round(p.z), color);
+	}
+	void dobox(PGraphics pa, int x, int y, int z) {
+		dobox(pa, x, y, z, 0);
+	}
+	void dobox(PGraphics pa, int x, int y, int z, int color) {
+		int colo = color != 0 ? color : map[size * size * z + size * y + x];
 		if (colo == 0) return;
-		//PVector bottomidx = PVector.add(player.pos, PVector.mult(player.up, -1));
-		//if (x == round(bottomidx.x) && y == round(bottomidx.y) && z == round(bottomidx.z)) colo = color(255, 255, 255, 250);
-		//else 
 		colo = (colo & 0xffffff) | 0x7f000000;
 		pa.pushMatrix();
 		pa.translate(x, y, z);
 		pa.fill(colo);
 		pa.texture(boxtex);
 		TexCube t = new TexCube();
-		t.draw(pa, boxtex, 0.5f);
+		t.draw(pa, color == 0 ? boxtex : null, 0.5f);
 // 		tcube.draw(0.5);
 // 		pa.box(1);
 		pa.popMatrix();

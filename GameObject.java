@@ -19,17 +19,17 @@ class GameObject {
 	// alussa kolikon pinnan normaali y-akselia päin
 	// -> jos up menee y:hyn niin käännä vaikka x:n suhteen 90°
 	// TODO: mieti mihin kolikon yläreuna osoittaa ja asettele niin ettei ole ylösalaisin maassa
-	void draw(float speedup) {
-		pa.pushMatrix();
-		pa.translate(pos.x, pos.y, pos.z);
+	void draw(PGraphics g, float speedup) {
+		g.pushMatrix();
+		g.translate(pos.x, pos.y, pos.z);
 		mat.reset();
 		mat.rotate(speedup*pa.millis()*0.00314159f, up.x, up.y, up.z);
-		pa.applyMatrix(mat);
+		g.applyMatrix(mat);
 		if (up.y != 0) pa.rotateX((float)Math.PI/2f);
 // 		pa.rotateX(pa.millis()/1000.0f);
 // 		pa.rotateY(pa.millis()/2000.0f);
 // 		pa.rotateZ(pa.millis()/3000.0f);
 		model.draw();
-		pa.popMatrix();
+		g.popMatrix();
 	}
 }

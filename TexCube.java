@@ -31,24 +31,25 @@ public class TexCube {
 // 	public void update() {
 // 		tex.update();
 // 	}
-	public void draw(PApplet pa, PImage tex, float scale) {
-		pa.scale(scale);
-		for (int i = 0; i < 6; i++) square(pa, tex, i);
-		pa.scale(1/scale);
+	public void draw(PGraphics g, PImage tex, float scale) {
+		g.scale(scale);
+		for (int i = 0; i < 6; i++) square(g, tex, i);
+		g.scale(1/scale);
 	}
 	// piirrä yksi tahko
-	private void square(PApplet pa, PImage tex, int i) {
-		pa.beginShape();
-		pa.texture(tex);
+	private void square(PGraphics g, PImage tex, int i) {
+		g.beginShape();
+		if (tex != null) g.texture(tex);
+		else g.noTexture();
 // 		tex.apply();
 		//noTexture();
 		// tekstuurikoordinaatit (normalisoituina)
 		int[] uv = {1, 0,  0, 0,  0, 1,  1, 1};
 		for (int j = 0; j < 4; j++) {
 			int a = indices[4 * i + j];
-			pa.vertex(vertices[3 * a], vertices[3 * a + 1], vertices[3 * a + 2], uv[2*j], uv[2*j+1]);
-			//vertex(vertices[3 * a], vertices[3 * a + 1], vertices[3 * a + 2]);
+			if (tex != null) g.vertex(vertices[3 * a], vertices[3 * a + 1], vertices[3 * a + 2], uv[2*j], uv[2*j+1]);
+			else g.vertex(vertices[3 * a], vertices[3 * a + 1], vertices[3 * a + 2]);
 		}
-		pa.endShape();
+		g.endShape();
 	}
 }
