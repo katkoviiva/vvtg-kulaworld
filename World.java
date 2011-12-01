@@ -1,9 +1,10 @@
 import processing.core.*;
+import java.util.*;
 
 public class World {
 	int size, size3;
 	int[] map;
-	//int space=2;
+	int space = 6;
 	World(PApplet pa, int sz) {
 		size = sz;
 		size3 = sz * sz * sz;
@@ -23,6 +24,9 @@ public class World {
 	}
 	int at(int x, int y, int z, int size) {
 		return size * (size * z + y) + x;
+	}
+	int at(PVector p) {
+		return at(PApplet.round(p.x), PApplet.round(p.y), PApplet.round(p.z));
 	}
 	void draw(PApplet pa) {
 		pa.pushMatrix();
@@ -61,8 +65,53 @@ public class World {
 	}
 	PImage boxtex;
 	void boxTex(PImage tex) { boxtex = tex; }
+	
+	// kolikko1, akseli1, ...
+	// akseli ulospäin "putkesta"
+	ArrayList<PVector> endpoints() {
+		ArrayList<PVector> pts = new ArrayList<PVector>();
+		for (int z = 0; z < size; z += space+1) {
+			for (int y = 0; y < size; y += space+1) {
+				for (int x = 0; x < size; x += space+1) {
+					PVector pos = head(x, y, z);
+					if (pos != null) {
+						pts.add(pos);
+						pts.add(PVector.sub(pos, new PVector(x, y, z)));
+					}
+				}
+			}
+		}
+		return pts;
+	}
+	
+	// TODO: parempi nimi
+	PVector head(int x, int y, int z) {
+		PVector pp = new PVector(x, y, z);
+		PVector[] dirs = {
+			new PVector(-1, 0, 0),
+			new PVector(1, 0, 0),
+			new PVector(0, -1, 0),
+			new PVector(0, 1, 0),
+			new PVector(0, 0, -1),
+			new PVector(0, 0, 1),
+		};
+		int blkfound = -1;
+		for (int i = 0; i < dirs.length; i++) {
+			PVector p = dirs[i];
+			PVector next = PVector.add(pp, p);
+			if (next.x >= 0 && next.x < size
+			 && next.y >= 0 && next.y < size
+			 && next.z >= 0 && next.z < size) {
+				if (map[at(next)] != 0) {
+					if (blkfound != -1) return null;
+					blkfound = i;
+				}
+			}
+		}
+		if (blkfound != -1) return PVector.sub(pp, dirs[blkfound]);
+		return null;
+	}
 }
-
 
 // prim's algorithm / pienin virittäjäpuu
 // harvassa pisteitä, joista jokaisesta pääsee jotenkin jonnekin

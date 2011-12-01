@@ -4,10 +4,10 @@ import java.util.*;
 
 public class Player {
 	PVector pos, dir, up; // maailmakoordinaatistossa
-	float spd;
 	PMatrix3D rotstate = new PMatrix3D();
 	World world;
-	float speed = 1;
+	static final float normalspeed = 2;
+	float speed = normalspeed;
 	
 	LinkedList<Integer> keyHistory = new LinkedList<Integer>();
 	
@@ -91,10 +91,9 @@ public class Player {
 	
 	Animation animation = null;
 	
-	Player(PVector p, PVector d, float s, PVector u, World w) {
+	Player(PVector p, PVector d, PVector u, World w) {
 		pos = p;
 		dir = d;
-		spd = s;
 		up = u;
 		world = w;
 	}
@@ -117,7 +116,10 @@ public class Player {
 	}
 	void pressKey(char key) {
 		keyHistory.addLast((int)key);
-		if (key == ' ') keyHistory.clear();
+		if (key == ' ') {
+			keyHistory.clear();
+			speed = normalspeed;
+		}
 	}
 	void processKey(int key) {
 		switch (key) {
@@ -127,8 +129,8 @@ public class Player {
 			case 'l': turn(-(float)Math.PI/2); break;
 			case 'i' - 'a' + 1: superwalk(1); break;
 			case 'k' - 'a' + 1: superwalk(-1); break;
-			case 'f': speed = 10; break;
-			case 's': speed = 1; break;
+			case 'f': speed = 10*normalspeed; break;
+			case 's': speed = normalspeed; break;
 		}
 	}
 	
@@ -179,7 +181,7 @@ public class Player {
 	void turn(float ang) {
 		animation = new Turn(ang);
 	}
-	void draw(PApplet pa) {
+	void draw(PApplet pa, PImage tex) {
 		pa.pushMatrix();
 		pa.translate(pos.x, pos.y, pos.z);
 		PVector x = up.cross(dir);
@@ -193,9 +195,12 @@ public class Player {
  		pa.textureMode(PApplet.IMAGE);
 //  		texturedSphere(0.5, texmap);
 		pa.textureMode(PApplet.NORMALIZED);
+		
+		TexCube t = new TexCube();
+		t.draw(pa, tex, 0.5f);
 
  		//tcube.draw(0.5);
- 		pa.box(1);
+//  		pa.box(1);
 		pa.popMatrix();
 	}
 }

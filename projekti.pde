@@ -26,8 +26,8 @@ float SINCOS_PRECISION = 0.5;
 int SINCOS_LENGTH = int(360.0 / SINCOS_PRECISION);
 float lasttime = 0;
 
-PImage grass;
-GameObject coin;
+PImage grass, pltex;
+ArrayList<GameObject> coins = new ArrayList<GameObject>();
 
 PFont font;
 
@@ -37,19 +37,25 @@ void setup() {
 // 	tcube = new TexCube(new PlasmaTex(new PImage(64, 64)));
 	world = new World(this, wsize);
 	player = new Player(
-	new PVector(-1, 0, 0), 
-	new PVector(0, 0, 1), 1,
-	new PVector(-1, 0, 0),
-	world);
+		new PVector(-1, 0, 0), 
+		new PVector(0, 0, 1),
+		new PVector(-1, 0, 0),
+		world);
 	
 	texmap = loadImage("world32k.jpg");    
 	initializeSphere(sDetail);
 	grass = loadImage("Seamless_grass_texture_by_hhh316.jpeg");
+	pltex = loadImage("Awesome2.png");
 	world.boxTex(grass);
 	OBJModel mdl = new OBJModel(this, "kolikko.obj", "absolute" /* relative */, PApplet.POLYGON);
-	coin = new GameObject(this, mdl, new PVector(-1,0,3));
+	
+	ArrayList<PVector> endpts = world.endpoints();
+	for (int i = 0; i < endpts.size(); i += 2) {
+		coins.add(new GameObject(this, mdl, endpts.get(i), endpts.get(i+1)));
+	}
+	
 	font = createFont("Courier", 20, true);
-	println(PFont.list());
+// 	println(PFont.list());
 }
 void keyPressed () {
 	player.pressKey(key);
@@ -67,10 +73,16 @@ void draw() {
 // 	tcube.update();
 	background(0);
 	
+	for (GameObject c: coins) {
+		if (PVector.sub(player.pos, c.pos).mag() < 0.001) {
+			println("Hohoo" + PVector.sub(player.pos, c.pos).mag());
+			coins.remove(c);
+			break;
+		}
+	}
 	if (lasttime != 0) player.update((millis() - lasttime) / 1000.0);
 	lasttime = millis();
 
-// scale(100);	pointLight(255, 255, 255, player.pos.x-player.up.x, player.pos.y-player.up.y, player.pos.z-player.up.z);
 	player.apply(this);
 	textureMode(NORMALIZED);
 // 	background(world.hasBlk(PVector.add(player.pos, PVector.mult(player.up, -1))) ? 0 : color(0, 0, 255));
@@ -78,23 +90,32 @@ void draw() {
 
 	scale(100);
 	
-	ambientLight(30, 30, 30);
-	ambientLight(255,255,255);
-	
+	ambientLight(70, 70, 70);
+// 	ambientLight(255,255,255);
+// 	pointLight(255, 255, 255, player.pos.x-player.up.x, player.pos.y-player.up.y, player.pos.z-player.up.z);
+	lightFalloff(0.1, 0.0, 0.001);
+	spotLight(255, 255, 255, player.pos.x+player.dir.x, player.pos.y+player.dir.y, player.pos.z+player.dir.z, player.dir.x, player.dir.y, player.dir.z, PI/4, 10);
+// 	spotLight(255, 255, 255, player.pos.x+player.up.x, player.pos.y+player.up.y, player.pos.z+player.up.z, player.dir.x, player.dir.y, player.dir.z, PI/4, 1);
+// 	pointLight(255, 255, 255, player.pos.x+player.dir.x, player.pos.y+player.dir.y, player.pos.z+player.dir.z);
+// 	pointLight(255, 255, 255, player.pos.x+player.up.x, player.pos.y+player.up.y, player.pos.z+player.up.z);
 
 	noStroke();
-	fill(100, 100, 100, 100);
+//	fill(100, 100, 100, 100);
+	fill(255, 255, 255, 255);
 	stroke(100);
-	player.draw(this);
+	player.draw(this, pltex);
 	
 	stroke(255);noStroke();
 	world.draw(this);
-	coin.draw();
+	for (GameObject obj: coins) obj.draw();
 
 	textFont(font);
 
 	textMode(SCREEN);
-	text("Hei moi tättädää", 10, 20);
+	fill(255);
+	text("Coins: " + coins.size(), 10, 20);
+	text("fps: " + frameRate, 10, 40);
+	text("pos: (" + player.pos.x + ", " + player.pos.y + ", " + player.pos.z + "), sz=" + world.size, 10, 60);
 }
 
 
