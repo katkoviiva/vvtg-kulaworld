@@ -38,13 +38,14 @@ int playertime;
 void setup() {
 	size(800, 600, OPENGL);
 	randomSeed(0);
+	PGraphicsOpenGL glasdf;
 // 	tcube = new TexCube(new PlasmaTex(new PImage(64, 64)));
 	world = new World(this, wsize);
 	player = new Player(
 		new PVector(-1, 0, 0), 
 		new PVector(0, 0, 1),
 		new PVector(-1, 0, 0),
-		world);
+		world, this);
 	
 	texmap = loadImage("world32k.jpg");    
 	initializeSphere(sDetail);

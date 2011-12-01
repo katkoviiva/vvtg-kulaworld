@@ -15,12 +15,17 @@ public class TexCube {
 	// neljän mittaisia indeksijonoja jotka määräävät tahkot
 	final int[] indices = {
 		0, 1, 2, 3,
+		3, 2, 6, 7,
+		7, 6, 5, 4,
+		4, 5, 1, 0,
+		
 		1, 5, 6, 2,
+		4, 0, 3, 7
+		/*1, 5, 6, 2,
 		5, 4, 7, 6,
 		4, 0, 3, 7,
-		
 		4, 5, 1, 0,
-		3, 2, 6, 7
+		3, 2, 6, 7*/
 	};
 	
 // 	TimeTexture tex;
@@ -44,7 +49,7 @@ public class TexCube {
 // 		tex.apply();
 		//noTexture();
 		// tekstuurikoordinaatit (normalisoituina)
-		int[] uv = {1, 0,  0, 0,  0, 1,  1, 1};
+		int[] uv = {1, 1,  0, 1,  0, 0,  1, 0 };
 		for (int j = 0; j < 4; j++) {
 			int a = indices[4 * i + j];
 			if (tex != null) g.vertex(vertices[3 * a], vertices[3 * a + 1], vertices[3 * a + 2], uv[2*j], uv[2*j+1]);
