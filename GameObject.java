@@ -1,50 +1,4 @@
-/*import java.util.*;
-import saito.objloader.*;
 import processing.core.*;
-import processing.opengl.*;
-
-class GameObject {
-	OBJModel model;
-	PVector pos;
-	PApplet pa;
-	PVector up;
-	PMatrix3D mat;
-	GameObject(PApplet pap, OBJModel mdl, PVector p, PVector u) {
-		pa = pap;
-		model = mdl;
-		pos = p;
-		up = u;
-		mat = new PMatrix3D();
-	}
-	// alussa kolikon pinnan normaali y-akselia päin
-	// -> jos up menee y:hyn niin käännä vaikka x:n suhteen 90°
-	// TODO: mieti mihin kolikon yläreuna osoittaa ja asettele niin ettei ole ylösalaisin maassa
-	void draw(PGraphics g, float speedup) {
-		g.pushMatrix();
-		g.translate(pos.x, pos.y, pos.z);
-		mat.reset();
-		mat.rotate(speedup*pa.millis()*0.00314159f, up.x, up.y, up.z);
-		g.applyMatrix(mat);
-		if (up.y != 0) pa.rotateX((float)Math.PI/2f);
-// 		pa.rotateX(pa.millis()/1000.0f);
-// 		pa.rotateY(pa.millis()/2000.0f);
-// 		pa.rotateZ(pa.millis()/3000.0f);
-		model.draw();
-		g.popMatrix();
-	}
-}
-*/
-
-
-import processing.*;
-import processing.core.*;
-import java.util.*;
-import processing.opengl.*;
-
-import com.sun.opengl.cg.*;
-import javax.media.opengl.*;
-import com.sun.opengl.util.*;
-import java.nio.*;
 import processing.opengl.*;
 import saito.objloader.*;
 
@@ -63,7 +17,7 @@ public class GameObject {
 		PMatrix3D orotstate;
 		float time;
 		Animation() { start(); }
-		abstract void animate(/*Player player*/float time);
+		abstract void animate(float time);
 		void start() {
 			opos = PVector.mult(pos, 1);
 			odir = PVector.mult(dir, 1);

@@ -1,4 +1,5 @@
 import processing.core.*;
+
 public class TexCube {
 	// pisteiden paikka avaruudessa
 	final float[] vertices = {

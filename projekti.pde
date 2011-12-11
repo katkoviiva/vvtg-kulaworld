@@ -35,7 +35,7 @@ Ghost gost;
 PGraphics mapImage;
 
 int hitEffectDelay = 3;
-int hitTime = 3000;
+int hitTime = -1000 * hitEffectDelay;
 int enemiesHit = 0;
 
 
