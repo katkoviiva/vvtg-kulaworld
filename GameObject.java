@@ -56,9 +56,6 @@ public class GameObject {
 	float speed = normalspeed;
 	int steps;
 	OBJModel mdl;
-	
-	LinkedList<Integer> keyHistory = new LinkedList<Integer>();
-	
 	PApplet pa;
 	
 	abstract class Animation {
