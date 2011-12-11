@@ -8,14 +8,16 @@ import javax.media.opengl.*;
 import com.sun.opengl.util.*;
 import java.nio.*;
 import processing.opengl.*;
+import saito.objloader.*;
 
 public class Player {
 	PVector pos, dir, up; // maailmakoordinaatistossa
 	PMatrix3D rotstate = new PMatrix3D();
 	World world;
-	static final float normalspeed = 2.0f, fastspeed = 8.0f;
+	static final float normalspeed = 4.0f, fastspeed = 8.0f;
 	float speed = normalspeed;
 	int steps;
+	OBJModel mdl;
 	
 	LinkedList<Integer> keyHistory = new LinkedList<Integer>();
 	
@@ -111,6 +113,8 @@ public class Player {
 		glsl.loadFragmentShader("test.frag");
 		glsl.useShaders();
 		this.pa=pa;
+		mdl = new OBJModel(pa, "pampula.obj", "absolute" /* relative */, PApplet.POLYGON);
+
 	}
 	void apply(PApplet pa) {
 		PVector e = PVector.sub(pos, PVector.mult(dir, 4));
@@ -218,7 +222,9 @@ public class Player {
 		zing += 0.1;
 		glsl.startShader();
 		glsl.uniform3f(glsl.getUniformLocation("lol"), zing, 0, 0);
-		t.draw(pa, tex, 0.5f);
+// 		t.draw(pa, tex, 0.5f);
+		pa.noStroke();
+		mdl.draw();
 		glsl.endShader();
 
  		//tcube.draw(0.5);

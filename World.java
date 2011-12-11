@@ -46,9 +46,9 @@ public class World {
 		dobox(pa, x, y, z, 0);
 	}
 	void dobox(PGraphics pa, int x, int y, int z, int color) {
-		int colo = color != 0 ? color : map[size * size * z + size * y + x];
+		int colo = color != 0 ? color : (map[size * size * z + size * y + x] == 0 ? 0 : 0xffffffff);
 		if (colo == 0) return;
-		colo = (colo & 0xffffff) | 0x7f000000;
+// 		colo = (colo & 0xffffff) | 0x7f000000;
 		pa.pushMatrix();
 		pa.translate(x, y, z);
 		pa.fill(colo);
