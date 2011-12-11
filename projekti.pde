@@ -30,7 +30,6 @@ float mapx, mapy, mapz;
 int playertime;
 
 PImage morko;
-Ghost gost;
 
 PGraphics mapImage;
 
@@ -52,7 +51,7 @@ class Ghost extends GameObject {
 // 		dirr.normalize();
 // 		dir = PVector.sub(new PVector(), dirr);
 	}
-	void render(PGraphics g, PImage tex) {
+	void render(PGraphics g) {
 		update(0);
 		beginShape();
 		texture(morko);
@@ -79,7 +78,6 @@ void setup() {
 	texmap = loadImage("world32k.jpg");    
 	grass = loadImage("Seamless_grass_texture_by_hhh316.jpeg");
 	morko = loadImage("ghost.png");
-	gost = new Ghost(new PVector(-1, 0, 1), new PVector(0, 0, 1), new PVector(-1, 0, 0), world, this, null);
 	world.boxTex(grass);
 	
 	OBJModel coinmdl = new OBJModel(this, "kolikko.obj", "absolute", PApplet.POLYGON);
@@ -163,24 +161,24 @@ void renderScene() {
 	PVector lightpos = PVector.add(player.pos, PVector.mult(player.dir, 0.51));
 	spotLight(255, 255, 255, lightpos.x, lightpos.y, lightpos.z, player.dir.x, player.dir.y, player.dir.z, PI/4, 10);
 	
-	player.draw(g, null);
-	gost.draw(g, null);
+	player.draw(g);
+	textureMode(NORMALIZED);
 	world.draw(g);
 	
-	for (GameObject obj: coins) obj.draw(g, null);
-	for (GameObject obj: enemies) obj.draw(g, null);
+	for (GameObject obj: coins) obj.draw(g);
+	for (GameObject obj: enemies) obj.draw(g);
 	
 	if (animobj != null) {
 		float time = (millis()-animstart)/1000.0;
 		PVector pp = animobj.pos;
 		animobj.pos = PVector.add(pp, PVector.mult(animobj.up, 2*time));
-		animobj.draw(g, null); // pyörittele nopeammin!
+		animobj.draw(g); // pyörittele nopeammin!
 		animobj.pos = pp;
 		if (time >= 2) animobj = null;
 	}
 }
 
-void renderMap() {	
+void renderMap() {
 	mapImage.beginDraw();
 	mapImage.background(0);
 	mapImage.noStroke();
@@ -190,6 +188,7 @@ void renderMap() {
 	mapImage.scale(5);
 	mapImage.applyMatrix(camera);
 	mapImage.translate(-world.size/2, -world.size/2, -world.size/2);
+	mapImage.textureMode(NORMALIZED);
 	world.draw(mapImage);
 	// pelaaja vilkkuu valkoisena, jäljellä olevat rahat punaisia
 	if (millis() % 500 < 250) world.dobox(mapImage, player.pos, color(255, 255, 255));

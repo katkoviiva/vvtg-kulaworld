@@ -59,7 +59,7 @@ public class Player extends GameObject {
 	}
 	
 	float zing = 0;
-	void render(PGraphics pa, PImage tex) {
+	void render(PGraphics pa) {
 		zing += 0.1;
 		glsl.startShader();
 		glsl.uniform3f(glsl.getUniformLocation("lol"), zing, 0, 0);

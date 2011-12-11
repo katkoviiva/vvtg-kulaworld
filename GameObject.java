@@ -157,7 +157,7 @@ public class GameObject {
 		animation = new Turn(ang);
 	}
 	
-	void draw(PGraphics pa, PImage tex) {
+	void draw(PGraphics pa) {
 		pa.pushMatrix();
 		pa.translate(pos.x, pos.y, pos.z);
 		PVector x = up.cross(dir);
@@ -169,11 +169,11 @@ public class GameObject {
 		pa.applyMatrix(r);
 		pa.applyMatrix(rotstate);
 		pa.textureMode(PApplet.NORMALIZED);
-		render(pa, tex);
+		render(pa);
 		pa.popMatrix();
 	}
 	
-	void render(PGraphics pa, PImage tex) {
+	void render(PGraphics pa) {
 // 		TexCube t = new TexCube();
 // 		t.draw(pa, tex, 0.5f);
 		mdl.draw();
