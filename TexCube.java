@@ -1,5 +1,6 @@
 import processing.core.*;
 
+// harkkatehtävästä hieman muunneltu tekstuuroidun kuution rendaus
 public class TexCube {
 	// pisteiden paikka avaruudessa
 	final float[] vertices = {
@@ -22,21 +23,8 @@ public class TexCube {
 		
 		1, 5, 6, 2,
 		4, 0, 3, 7
-		/*1, 5, 6, 2,
-		5, 4, 7, 6,
-		4, 0, 3, 7,
-		4, 5, 1, 0,
-		3, 2, 6, 7*/
 	};
 	
-// 	TimeTexture tex;
-	
-// 	public TexCube(TimeTexture t) {
-// 		tex = t;
-// 	}
-// 	public void update() {
-// 		tex.update();
-// 	}
 	public void draw(PGraphics g, PImage tex, float scale) {
 		g.scale(scale);
 		for (int i = 0; i < 6; i++) square(g, tex, i);
@@ -47,8 +35,6 @@ public class TexCube {
 		g.beginShape();
 		if (tex != null) g.texture(tex);
 		else g.noTexture();
-// 		tex.apply();
-		//noTexture();
 		// tekstuurikoordinaatit (normalisoituina)
 		int[] uv = {1, 1,  0, 1,  0, 0,  1, 0 };
 		for (int j = 0; j < 4; j++) {

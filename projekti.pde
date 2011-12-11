@@ -1,103 +1,67 @@
-/*
- * etäisyydet tilejen välillä aina ykkösiä
- * tilen säde siis 0.5
- * kokonaislukukoordinaatti aina tilen keskellä
- * pelipallon säde 0.5
- * pelipallo säteen etäisyydellä tilen pinnasta
- * */
-
 import java.util.*;
 import processing.opengl.*;
 import saito.objloader.*;
 
-final int wsize = 3; // 3x3 grid
-final int HITS_TILL_DEATH = 3;
+final int WSIZE = 3; // maailmassa WSIZE*WSIZE kokoinen verkko pisteitä, niiden välillä ratoja
 World world;
 Player player;
 
-PImage texmap;
-
 float lasttime = 0;
 
-PImage grass;
-ArrayList<GameObject> coins = new ArrayList<GameObject>();
-ArrayList<GameObject> enemies = new ArrayList<GameObject>();
 
-PFont font;
-
-float mapx, mapy, mapz;
-
+// kauanko pelattu tai kauanko peli kesti jos kaikki on kerätty
 int playertime;
 
-PImage morko;
-
+// esiladataan karttakuvan piirtopinta ja fontti
 PGraphics mapImage;
+PFont font;
 
-int hitEffectDelay = 3;
+// vihuun osuessa tulee parin sekunnin punainen tausta
+int hitEffectDelay = 2;
 int hitTime = -1000 * hitEffectDelay;
+// pidetään kirjaa moneenko on osuttu, lopulta peli sulkeutuu jos osuu 
 int enemiesHit = 0;
+final int HITS_TILL_DEATH = 3;
+ArrayList<GameObject> enemies = new ArrayList<GameObject>();
 
-
-class Ghost extends GameObject {
-	public Ghost(PVector p, PVector d, PVector u, World w, PApplet pa, OBJModel model) {
-		super(p, d, u, w, pa, model);
-	}
-	void update(float dt) {
-		super.update(dt);
-		if (animation == null) walk(1);
-// 		rot(dt);
-// 		PVector cam = PVector.add(PVector.sub(player.pos, PVector.mult(player.dir, 4)), PVector.mult(player.up, 2));
-// 		PVector dirr = PVector.sub(cam, pos);
-// 		dirr.normalize();
-// 		dir = PVector.sub(new PVector(), dirr);
-	}
-	void render(PGraphics g) {
-		update(0);
-		beginShape();
-		texture(morko);
-		vertex(-0.5, -0.5, 0,  0, 1);
-		vertex(0.5, -0.5, 0,  1, 1);
-		vertex(0.5, 0.5, 0,  1, 0);
-		vertex(-0.5, 0.5, 0,  0, 0);
-		endShape();
-	}
-}
+// kun kolikko kerätään niin sitä animoidaan hetki leijumaan ylöspäin
+ArrayList<GameObject> coins = new ArrayList<GameObject>();
+GameObject animobj = null;
+int animstart;
 
 void setup() {
-	size(800, 600, OPENGL);
+	size(800, 600, OPENGL /* P3D */);
+	smooth();
 // 	randomSeed(0); // samanlainen kenttä aina
 
-	world = new World(this, wsize);
+	world = new World(this, WSIZE, loadImage("Seamless_grass_texture_by_hhh316.jpeg"));
 	// pelaaja lähtee vakiopaikasta vakiosuuntaan; koska kyseessä on nurkka, siinä on aina joku palikka
 	player = new Player(
 		new PVector(-1, 0, 0), 
 		new PVector(0, 0, 1),
 		new PVector(-1, 0, 0),
-		world, this, new OBJModel(this, "pampula.obj", "absolute" /* relative */, PApplet.POLYGON));
-	
-	texmap = loadImage("world32k.jpg");    
-	grass = loadImage("Seamless_grass_texture_by_hhh316.jpeg");
-	morko = loadImage("ghost.png");
-	world.boxTex(grass);
+		world, this, new OBJModel(this, "pampula.obj", "absolute", PApplet.POLYGON));
 	
 	OBJModel coinmdl = new OBJModel(this, "kolikko.obj", "absolute", PApplet.POLYGON);
-	
+	// kolikoita jokaiseen maailman pääpisteeseen sekä jokaisesta vihu kävelemään
+	PImage morko = loadImage("ghost.png");
 	ArrayList<PVector> endpts = world.endpoints();
 	for (int i = 0; i < endpts.size(); i += 2) {
 		PVector pos = endpts.get(i), up = endpts.get(i + 1), dir = new PVector(1, 0, 0);
 		if (up.x != 0) dir = new PVector(0, 1, 0);
 		coins.add(new Coin(pos, dir, up, world, this, coinmdl));
-		Ghost g = new Ghost(pos, dir, up, world, this, null);
+		Ghost g = new Ghost(pos, dir, up, world, this, morko);
 		g.walk(1);
 		enemies.add(g);
 	}
+	// kai kaikilla courierfontti on?
 	font = createFont("Courier", 20, true);
+	// mielekkään kokoinen tekstuuri kun softarendaus tuntuu olevan jäätävän hidasta
+	// toisaalta en löytänyt toimivaa opengl-tekstuuriinrendauskoodia tähän hätään
 	mapImage = createGraphics(width/4, height/4, P3D);
 }
 
-GameObject animobj = null;
-int animstart;
-
+// liikuttelu tapahtuu vain kerran per frame myös
 void draw() {
 	update();
 	render();
@@ -106,6 +70,7 @@ void draw() {
 void update() {
 	float dt = (millis() - lasttime) / 1000.0;
 	
+	// jos kolikkoon törmää niin se leijuanimoi hetken ja katoaa
 	for (GameObject o: coins) {
 		o.update(dt);
 		if (PVector.sub(player.pos, o.pos).mag() < 0.001) {
@@ -114,16 +79,16 @@ void update() {
 			coins.remove(o);
 			if (coins.size() == 0) {
 				playertime = millis();
-				player.steps = -player.steps;
+				player.steps = -player.steps; // pieni purkka ettei kävelymäärä enää etene; gameobjectissa on tarkistus
 			}
 			break;
 		}
 	}
 
+	// vihuun törmääminen taas väläyttää taustaa punaisena ja ei saa tapahtua liian montaa kertaa
 	for (GameObject o: enemies) {
 		o.update(0.1 * dt);
 		if (PVector.sub(player.pos, o.pos).mag() < 0.1) {
-			println("ENEMY HIT!");
 			enemies.remove(o);
 			hitTime = millis();
 			if (++enemiesHit == HITS_TILL_DEATH) {
@@ -149,7 +114,7 @@ void renderScene() {
 	player.apply(this); // kamera kivasti peliukkoa päin
 	scale(100); // nätimpiä yksiköitä
 
-	// väritys
+	// väritykset heti alkuun
 	float timeSinceHit = (millis() - hitTime) / 1000.0;
 	if (timeSinceHit < hitEffectDelay)
 		background(255 - 255 * sin(PI/2 * timeSinceHit / hitEffectDelay), 0, 0);
@@ -162,17 +127,18 @@ void renderScene() {
 	spotLight(255, 255, 255, lightpos.x, lightpos.y, lightpos.z, player.dir.x, player.dir.y, player.dir.z, PI/4, 10);
 	
 	player.draw(g);
-	textureMode(NORMALIZED);
+	textureMode(NORMALIZED); // objmodel fukkaa tämän
 	world.draw(g);
 	
 	for (GameObject obj: coins) obj.draw(g);
 	for (GameObject obj: enemies) obj.draw(g);
 	
 	if (animobj != null) {
-		float time = (millis()-animstart)/1000.0;
+		float time = (millis() - animstart) / 1000.0;
 		PVector pp = animobj.pos;
 		animobj.pos = PVector.add(pp, PVector.mult(animobj.up, 2*time));
-		animobj.draw(g); // pyörittele nopeammin!
+		animobj.rot(0.1);
+		animobj.draw(g);
 		animobj.pos = pp;
 		if (time >= 2) animobj = null;
 	}
@@ -186,11 +152,11 @@ void renderMap() {
 	// jotenkin kivasti kuvan keskelle yms, vähän iteroitu sopivaksi
 	mapImage.translate(mapImage.width/2, mapImage.height/2, 0);
 	mapImage.scale(5);
-	mapImage.applyMatrix(camera);
+	mapImage.applyMatrix(mapCam);
 	mapImage.translate(-world.size/2, -world.size/2, -world.size/2);
 	mapImage.textureMode(NORMALIZED);
 	world.draw(mapImage);
-	// pelaaja vilkkuu valkoisena, jäljellä olevat rahat punaisia
+	// pelaaja vilkkuu valkoisena, jäljellä olevat rahat punaisia, möröt violetteja
 	if (millis() % 500 < 250) world.dobox(mapImage, player.pos, color(255, 255, 255));
 	
 	for (GameObject obj: coins) {
@@ -207,12 +173,13 @@ void renderMap() {
 	}
 	mapImage.endDraw();
 	
+	// tekstuuriin rendattu juttu vielä näytölle kokeellisesti iteroituun paikkaan
 	resetMatrix();
 	noLights();
 	hint(DISABLE_DEPTH_TEST);
 	textureMode(NORMALIZED);
 	resetMatrix();
-	translate(50,10, -200);
+	translate(50, 10, -200);
 	stroke(255);
 	fill(255,255,255,10);
 	beginShape(QUADS);
@@ -227,6 +194,7 @@ void renderMap() {
 	hint(ENABLE_DEPTH_TEST);
 }
 
+// hudissa debuggidataa ja pelidataa
 void renderText() {
 	textFont(font);
 	textMode(SCREEN);
@@ -239,23 +207,24 @@ void renderText() {
 	text("time: " + (playertime != 0 ? playertime/1000.0 : millis() / 1000.0) + ", steps: " + abs(player.steps), 10, ypos += 20);
 }
 
-
-////********* I/O
 PMatrix3D rotmat(float a, float x, float y, float z) {
 	PMatrix3D mat = new PMatrix3D();
 	mat.rotate(a, x, y, z);
 	return mat;
 }
 
+// wsadqe pyörittää karttakuvaa, ja nappi passataan myös pelaajaoliolle
 void keyPressed () {
 	player.pressKey(key);
-	if (key == 's') camera.preApply(rotmat(-PI/40, 1, 0, 0));
-	if (key == 'w') camera.preApply(rotmat(PI/40, 1, 0, 0));
-	if (key == 'a') camera.preApply(rotmat(-PI/40, 0, 1, 0));
-	if (key == 'd') camera.preApply(rotmat(PI/40, 0, 1, 0));
-	if (key == 'q') camera.preApply(rotmat(-PI/40, 0, 0, 1));
-	if (key == 'e') camera.preApply(rotmat(PI/40, 0, 0, 1));
+	if (key == 'w') mapCam.preApply(rotmat(PI/40, 1, 0, 0));
+	if (key == 's') mapCam.preApply(rotmat(-PI/40, 1, 0, 0));
+	if (key == 'a') mapCam.preApply(rotmat(-PI/40, 0, 1, 0));
+	if (key == 'd') mapCam.preApply(rotmat(PI/40, 0, 1, 0));
+	if (key == 'q') mapCam.preApply(rotmat(-PI/40, 0, 0, 1));
+	if (key == 'e') mapCam.preApply(rotmat(PI/40, 0, 0, 1));
 }
+
+// kartan pyörittäminen hiirellä, copypastaa harkkatehtävästä (omaa koodia silti)
 
 void mousePressed() {
 	startDrag(new PVector(mouseX, mouseY));
@@ -264,21 +233,14 @@ void mouseDragged() {
 	drag(new PVector(mouseX, mouseY));
 }
 
-
-
-
-//********* hiiren pyörittely
-
-
-
-PMatrix3D camera = new PMatrix3D();
+PMatrix3D mapCam = new PMatrix3D();
 // hiiripyörittelyolio joka muistaa hiiren aloituspaikan
 MouseRotation rotation = new MouseRotation();
 
 PMatrix3D lastCamera;
 // klikkaa pyöritys alkamaan hiiren nykypisteestä
 void startDrag(PVector mouse) {
-	lastCamera = new PMatrix3D(camera);
+	lastCamera = new PMatrix3D(mapCam);
 	rotation.start(mouse);
 }
 // laske pyörityskulma ja -akseli, muodosta pyöritysmatriisi,
@@ -287,9 +249,9 @@ void startDrag(PVector mouse) {
 void drag(PVector mouse) {
 	float[] rot = new float[4];
 	rotation.drag(mouse, rot);
-	camera.reset();
-	camera.rotate(3*rot[0], rot[1], rot[2], rot[3]);
-	camera.apply(lastCamera);
+	mapCam.reset();
+	mapCam.rotate(3*rot[0], rot[1], rot[2], rot[3]);
+	mapCam.apply(lastCamera);
 }
 
 class MouseRotation {
@@ -328,6 +290,4 @@ class MouseRotation {
 		rot[3] = axis.z;
 	}
 }
-
-
 

@@ -2,28 +2,41 @@ import processing.core.*;
 import java.util.*;
 import saito.objloader.*;
 
+// näppiksellä ohjattava pelaaja, pelin keskipiste ja maailman napa.
 public class Player extends GameObject {
 	GLSL glsl;
+	boolean doShaders = true;
+	// nappipainallukset varastoidaan muistiin koska ne hienot animaatiot ovat oikeastaan niin pirun hitaita
+	// käyttäjä voi painella nappeja etukäteen jos tietää minne tahtoo
 	LinkedList<Integer> keyHistory = new LinkedList<Integer>();
+	float time;
+
 	Player(PVector p, PVector d, PVector u, World w, PApplet pa, OBJModel model) {
 		super(p, d, u, w, pa, model);
-		glsl = new GLSL(pa);
-		glsl.loadVertexShader("test.vert");
-		glsl.loadFragmentShader("test.frag");
-		glsl.useShaders();
+		if (doShaders) {
+			glsl = new GLSL(pa);
+			glsl.loadVertexShader("test.vert");
+			glsl.loadFragmentShader("test.frag");
+			glsl.useShaders();
+		}
 	}
+
+	// hoida kamera osoittamaan sopivaan suuntaan
 	void apply(PApplet pa) {
 		PVector e = PVector.sub(pos, PVector.mult(dir, 4));
 		e.add(PVector.mult(up, 2));
 		int s=100;
 		pa.camera(s*e.x, s*e.y, s*e.z, s*pos.x, s*pos.y, s*pos.z, -up.x, -up.y, -up.z);
 	}
+	// päivitellessä hoidetaan näppistöbufferikin
 	void update(float dt) {
 		super.update(dt);
 		if (animation == null && !keyHistory.isEmpty()) {
 			processKey(keyHistory.removeFirst());
 		}
+		time += dt;
 	}
+	// kutsu tätä kun nappia key painetaan; menee jonoon
 	void pressKey(char key) {
 		keyHistory.addLast((int)key);
 		if (key == ' ') {
@@ -31,6 +44,7 @@ public class Player extends GameObject {
 			speed = normalspeed;
 		}
 	}
+	// näppis on hardkoodattu, sori vaan
 	void processKey(int key) {
 		switch (key) {
 			case 'i': walk(1); break;
@@ -44,6 +58,8 @@ public class Player extends GameObject {
 		}
 	}
 	
+	// kävele kunnes tulee reuna eteen
+	// tässä kävellään nopeammin kuin tavallisesti; se temppuillaan laittamalla s- ja f-nappeja nappipuskuriin
 	void superwalk(int where) {
 		int w = where < 0 ? -1 : 1;
 		keyHistory.add((int)'f');
@@ -58,12 +74,12 @@ public class Player extends GameObject {
 		keyHistory.add((int)'s');
 	}
 	
-	float zing = 0;
 	void render(PGraphics pa) {
-		zing += 0.1;
-		glsl.startShader();
-		glsl.uniform3f(glsl.getUniformLocation("lol"), zing, 0, 0);
-		mdl.draw();
-		glsl.endShader();
+		if (doShaders) {
+			glsl.startShader();
+			glsl.uniform3f(glsl.getUniformLocation("lol"), time, 0, 0);
+			mdl.draw();
+			glsl.endShader();
+		} else mdl.draw();
 	}
 }

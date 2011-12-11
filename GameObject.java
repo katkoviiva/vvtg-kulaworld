@@ -2,6 +2,9 @@ import processing.core.*;
 import processing.opengl.*;
 import saito.objloader.*;
 
+// geneerinen objekti joka osaa liikkua pelikentällä animoiden itseään
+// olennaisinta on paikka, ylösvektori ja suuntavektori
+// esim. yli laidan mentäessä objekti kääntyy 90 astetta edessään olevalle pinnalle
 public class GameObject {
 	PVector pos, dir, up; // maailmakoordinaatistossa
 	PMatrix3D rotstate = new PMatrix3D();
@@ -12,6 +15,7 @@ public class GameObject {
 	OBJModel mdl;
 	PApplet pa;
 	
+	// joku animaatio kahden tilanteen välillä, varastoi alkutilan ja pyörittää objektia jotenkin ajan kuluessa
 	abstract class Animation {
 		PVector opos, odir, oup;
 		PMatrix3D orotstate;
@@ -19,6 +23,7 @@ public class GameObject {
 		Animation() { start(); }
 		abstract void animate(float time);
 		void start() {
+			// oliks näille mitään fiksua tapaa syväkopioida? ei oo copyconstructoria ainakaan.
 			opos = PVector.mult(pos, 1);
 			odir = PVector.mult(dir, 1);
 			oup = PVector.mult(up, 1);
@@ -32,6 +37,8 @@ public class GameObject {
 			return time != 1;
 		}
 	}
+
+	// eteenpäin kävely liikuttaa ja pyörittää peliobjektia
 	class Walk extends Animation {
 		float spd;
 		Walk(float s) { super(); spd = s; }
@@ -44,6 +51,7 @@ public class GameObject {
 			if (time == 1) world.visit(PVector.sub(pos, up));
 		}
 	}
+	// pudotessa reunan yli mennään siellä olevalle pinnalle pyörittämällä ylösvektoria
 	class FallRotation extends Animation {
 		int where;
 		FallRotation(int w) { super(); where = w; }
@@ -62,6 +70,7 @@ public class GameObject {
 			pos = PVector.add(opos, posdiff);
 		}
 	}
+	// edellistä muistuttava tapaus jossa kiivetään edessä olevan pystyseinän pinnalle
 	class HitRotation extends Animation {
 		int where;
 		HitRotation(int w) { super(); where = w; }
@@ -73,11 +82,10 @@ public class GameObject {
 			dir = rotmat.mult(odir, null);
 			up = rotmat.mult(oup, null);
 			if (time == 1) world.visit(PVector.sub(pos, up));
-			// TODO: pyöristä täällä lopuksi (animtime==1) nuo niin ettei mee tippaakaan vinoon
-			// (tarvitseeko?)
 		}
 	}
 	
+	// rintamasuunta kääntyy vasemmalle/oikealle
 	class Turn extends Animation {
 		float turnang;
 		Turn(float ang) {
@@ -91,14 +99,13 @@ public class GameObject {
 	}
 	
 	Animation animation = null;
-	GameObject(PVector p, PVector d, PVector u, World w, PApplet pa, OBJModel model) {
+	GameObject(PVector p, PVector d, PVector u, World w, PApplet pap, OBJModel model) {
 		pos = p;
 		dir = d;
 		up = u;
 		world = w;
-		this.pa=pa;
+		pa = pap;
 		mdl = model;
-
 	}
 
 	void update(float dt) {
@@ -108,19 +115,8 @@ public class GameObject {
 			}
 		}
 	}
-/*	void processKey(int key) {
-		switch (key) {
-			case 'i': walk(1); break;
-			case 'k': walk(-1); break;
-			case 'j': turn((float)Math.PI/2); break;
-			case 'l': turn(-(float)Math.PI/2); break;
-			case 'i' - 'a' + 1: superwalk(1); break;
-			case 'k' - 'a' + 1: superwalk(-1); break;
-			case 'f': speed = fastspeed; break;
-			case 's': speed = normalspeed; break;
-		}
-	}
-	*/
+	// kävellään normaalisti
+	// where: 1=eteenpäin, -1=taaksepäin
 	void walk(int where) {
 		if (steps >= 0) steps++;
 		PVector dest = PVector.add(pos, PVector.mult(dir, where));
@@ -128,7 +124,7 @@ public class GameObject {
 		if (dropCheck(dest, where, true)) return;
 		animation = new Walk(where);
 	}
-	
+	// edessä alla ei mitään? kaadutaanpas
 	boolean dropCheck(PVector p, int where, boolean anim) {
 		if (!world.hasBlk(PVector.add(p, PVector.mult(up, -1)))) {
 			if (anim) animation = new FallRotation(where);
@@ -136,7 +132,7 @@ public class GameObject {
 		}
 		return false;
 	}
-	
+	// edessä odottaa seinä? noustaan ylöspäin
 	boolean hitCheck(PVector p, int where, boolean anim) {
 		if (world.hasBlk(p)) {
 			if (anim) animation = new HitRotation(where);
@@ -144,19 +140,19 @@ public class GameObject {
 		}
 		return false;
 	}
-	
-	
+	// katselukääntely
 	void rot(float ang) {
 		PMatrix3D rotmat = new PMatrix3D();
 		rotmat.rotate(-ang, up.x, up.y, up.z);
 		dir = rotmat.mult(dir, null);
 	}
-	
+	// kääntymisanimaatio alkaa näin
 	void turn(float ang) {
 		if (steps >= 0) steps++;
 		animation = new Turn(ang);
 	}
 	
+	// kalikan transformaatio kivaan paikkaan ja mukavaan koordinaatistoon
 	void draw(PGraphics pa) {
 		pa.pushMatrix();
 		pa.translate(pos.x, pos.y, pos.z);
@@ -173,17 +169,8 @@ public class GameObject {
 		pa.popMatrix();
 	}
 	
+	// itse piirto tapahtuu tässä, helpompi ylikuormittaa
 	void render(PGraphics pa) {
-// 		TexCube t = new TexCube();
-// 		t.draw(pa, tex, 0.5f);
 		mdl.draw();
-	}
-}
-class Coin extends GameObject {
-	public Coin(PVector p, PVector d, PVector u, World w, PApplet pa, OBJModel model) {
-		super(p, d, u, w, pa, model);
-	}
-	void update(float dt) {
-		rot(dt);
 	}
 }

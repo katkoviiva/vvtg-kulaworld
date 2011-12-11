@@ -1,3 +1,4 @@
+// ei omaa koodia; halusin vain kokeilla miten helposti omat shaderit onnistuvat processingilla; aika helposti.
 import processing.core.*;
 import processing.opengl.*;
 import javax.media.opengl.*;

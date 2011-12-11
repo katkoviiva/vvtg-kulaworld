@@ -1,16 +1,23 @@
 import processing.core.*;
 import java.util.*;
 
+// maailma on tilepohjainen ja koostuu kokonaislukukoordinaateissa olevista palikoista
+// tarkemmin, se generoidaan n*n verkkoon siten että joka pisteestä pääsee jonnekin
+// (minimum spanning tree), verkon eri pisteet space-muuttujan etäisyydellä toisistaan ja välissä tilejä
 public class World {
 	int size, size3;
-	int[] map;
-	int space = 6;
-	World(PApplet pa, int sz) {
+	int[] map; // tää olis ehkä kannattanut indeksoida x-, y- ja z-koordinaateilla eikä näin
+	static int space = 6;
+	PImage boxtex;
+	World(PApplet pa, int sz, PImage tex) {
 		size = sz;
 		size3 = sz * sz * sz;
 		map = new int[size3];
+		// mapinluontialgo eroteltu jotta koodi ois pikkasen siistimpää
 		new PrimMap(this, pa);
+		boxtex = tex;
 	}
+	// onko kalikkaa tässä kohdassa? peliobjektit tarkistavat putoamisen näin
 	boolean hasBlk(PVector point) {
 		int x = PApplet.round(point.x); // round
 		int y = PApplet.round(point.y);
@@ -19,6 +26,7 @@ public class World {
 			&& x < size && y < size && z < size 
 			&& map[at(x, y, z)] != 0;
 	}
+	// taulukkoindeksi koordinaateista
 	int at(int x, int y, int z) {
 		return at(x, y, z, size);
 	}
@@ -28,6 +36,7 @@ public class World {
 	int at(PVector p) {
 		return at(PApplet.round(p.x), PApplet.round(p.y), PApplet.round(p.z));
 	}
+	// mualimo kuutio kerrallaan
 	void draw(PGraphics pa) {
 		pa.pushMatrix();
 		for (int z = 0; z < size; z++) {
@@ -45,6 +54,8 @@ public class World {
 	void dobox(PGraphics pa, int x, int y, int z) {
 		dobox(pa, x, y, z, 0);
 	}
+	TexCube tcube = new TexCube();
+	// piirrä kuutio jos sen väri on jotain muuta kun 0.
 	void dobox(PGraphics pa, int x, int y, int z, int color) {
 		int colo = color != 0 ? color : (map[size * size * z + size * y + x] == 0 ? 0 : 0xffffffff);
 		if (colo == 0) return;
@@ -53,24 +64,22 @@ public class World {
 		pa.translate(x, y, z);
 		pa.fill(colo);
 		pa.texture(boxtex);
-		TexCube t = new TexCube();
-		t.draw(pa, color == 0 ? boxtex : null, 0.5f);
-// 		tcube.draw(0.5);
-// 		pa.box(1);
+		//TexCube t = new TexCube();
+		tcube.draw(pa, color == 0 ? boxtex : null, 0.5f);
 		pa.popMatrix();
 	}
 	
+	// tätä käytin debuggailutilassa; pelaaja värjäsi tilet joissa oli käynyt jo eri värille
 	void visit(PVector point) {
-		int x = PApplet.round(point.x); // round
+		int x = PApplet.round(point.x);
 		int y = PApplet.round(point.y);
 		int z = PApplet.round(point.z);
 		map[at(x, y, z)] = 0xffffffff;
 	}
-	PImage boxtex;
-	void boxTex(PImage tex) { boxtex = tex; }
 	
-	// kolikko1, akseli1, ...
-	// akseli ulospäin "putkesta"
+	// maailmassa on välttämättä myös pisteitä joissa ei ole haaroja, laitetaan niiden päihin kolikkoja
+	// akseli ulospäin siitä suorasta osasta
+	// paluuarvot paikka1, akseli1, ...
 	ArrayList<PVector> endpoints() {
 		ArrayList<PVector> pts = new ArrayList<PVector>();
 		for (int z = 0; z < size; z += space+1) {
@@ -87,7 +96,10 @@ public class World {
 		return pts;
 	}
 	
-	// TODO: parempi nimi
+	// tällä funktiolla on huono nimi ja toteutuskin o ruma.
+	// tämä on se juttu mikä tekee työt endpoints()ille.
+	// jos tilepisteen reunalla toinen tile vain yhdessä suunnassa,
+	// niin piste on yksinään. tähän tarttis jonkun kuvan selostamaan.
 	PVector head(int x, int y, int z) {
 		PVector pp = new PVector(x, y, z);
 		PVector[] dirs = {
@@ -116,16 +128,18 @@ public class World {
 	}
 }
 
-// prim's algorithm / pienin virittäjäpuu
+// prim's algorithm / pienin virittäjäpuu http://en.wikipedia.org/wiki/Prim's_algorithm
 // harvassa pisteitä, joista jokaisesta pääsee jotenkin jonnekin
-// jokseenkin mielekäs kartta testailuun
+// jokseenkin mielekäs kartta ilman että tarvitsee käsin piirtää, 
+// ja tulee vielä erilaisia eri randomseedeillä niin ei ole tylsää
 
-// kartan vokseleitä käpistellään indeksillä eikä (x,y,z)-kolmikolla
+// kartan vokseleita käpistellään taulukkoindeksillä eikä (x,y,z)-kolmikolla
 // ehkä vähän hankalaa näin päin kumminkin
 class PrimMap {
 	World world;
 	int size, size3;
 	int[] map; // kartassa on värit, 0 jos ei palikkaa
+	// ei kyllä oo mitenkään eleganttia että konstruktori tekee kaikki työt
 	PrimMap(World world, PApplet pa) {
 		size = world.size;
 		size3 = world.size3;
@@ -133,11 +147,10 @@ class PrimMap {
 		generate(pa);
 	}
 	void generate(PApplet pa) {
-		// kulkuväylän leveys, ei mielellään 0
-		int space = 6;
+		int space = World.space;
 		// sz^3 pisteitä, joiden välillä space tyhjää (tyhjä 0: kuutio)
 		// eli (sz + (sz - 1) * space) ^ 3 tileä
-		// visited ~ V_new
+		// visited ~ V_new wikipedian algossa
 		
 		boolean[] visited = new boolean[size3];
 		int[] visitorder = new int[size3]; // indeksoidaan järjestysnumerolla
@@ -177,8 +190,6 @@ class PrimMap {
 			
 			// nykykohta venytetyssä maailmassa
 			int i = x * (space + 1), j = y * (space + 1), k = z * (space + 1);
-			
-// 			map[world.at(nx*(space+1), ny*(space+1), nz*(space+1), newsz)] = pa.color(255, 0, 0);
 			
 			// nurkkien välillä debugväreillä
 			for (int a = 0; a < space; a++) {
