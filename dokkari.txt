@@ -1,0 +1,44 @@
+T-111.4310 harjoitustyön dokumentaatio 2011
+Konsta Hölttä, 79149S
+
+* Yleistä ja ohjeita
+
+Harjoitustyöaihe on vaihtoehto 1, 3d-virtuaalimaailma. Kyseessä on labyrinttipeli, jossa liikutaan kolmiulotteisessa maailmassa. Labyrintti ei ole sellainen tavallinen jossa joka ruutuun pääsee ja väleissä on seinää, vaan se koostuu tiileistä joita on varsin harvassa. Joka tiilestä pääsee kuitenkin vähintään yhteen toiseen tiileen. Tiilit ovat kuution mallisia ja niiden joka pinnalla voi kävellä, ja niitä on kolmessa eri ulottuvuudessa eli maailma ei ole vain tasossa vaan se laajenee ylös- ja alaspäinkin. 
+
+Peliä pelataan lähinnä näppiksellä; pelihahmo liikkuu ikjl-nappuloilla. Ctrl-nappia pohjassa kävely (i ja k) suoritetaan nopeammin sinne asti missä maasto loppuu (kokeile). Napinpainallukset menevät jonoon, jolloin animointi ei hidasta syötteiden antamista. Jonon voi tyhjentää välilyönnillä, jos liike tuntuu jääneen jumiin esim. nappia pohjaan painaessa.
+
+Nurkassa näkyy tilastoja pelistä ja toisessa nurkassa kartta koko maailmasta. Pelialueella on kolikoita, jotka pitäisi kerätä, ja mörköjä, joihin saa osua korkeintaan kolmesti. Kolikko ja mörkö katoavat niihin osuessa. Karttaa pyöritetään napeilla wsadqe sekä hiirellä raahaamalla. Pelihahmo on kartalla vilkkuva valkoinen kuutio, kolikot ovat punaisia ja viholliset purppuroita. Tiililtä voi kävellä toiselle, ja jos edessä ei ole tiiltä, niin kävellään ja vieritään nykytiilen reunalle, joka siellä edessä odottaa. Jos taas edessä on ylöspäin nouseva tiilijono, pelaaja kääntyy pystyseinää vasten.
+
+Pelihahmolle on testiksi oma glsl-shaderi joka vääntelee sen koordinaatteja ja vääristää värejä kun halusin kokeilla olisiko se vaikeaa tehdä processingilla. Se kätevä glsl-luokka löytyi jostain processingin foorumeilta eikä ole omaa käsialaa. Omalla näytönohjaimella toimii varoituksetta, mutta jos pelipallo on musta tai muuten tulostuu jotain glsl-varoituksia, niin Player.javan riviltä 8 voi vaihtaa doShaders-muuttujan falseksi jolloin sitä ei käytetä.
+
+* Kooditekniikkaa
+
+Työssä on pyritty hoitamaan suuri osa arvosteluun vaikuttavista asioista jollain tavalla sekä kokeilemaan erilaisia asioita huvin vuoksi. Näillä on olennaisesti paljon päällekkäisyyttäkin. Koodi on pyritty pitämään pääsääntöisesti siistinä, mutta kaikki javan tyylisääntöjä ei ole noudatettu, kun ne ovat tässä aika epäolennaisia grafiikan kannalta. Esimerkiksi muuttujien näkyvyyteen (public/private/yms) ei ole kiinnitetty huomiota lainkaan, sekä jossain tökitään toisten olioiden muuttujia ilman settereitä/gettereitä.
+
+Maaston rakenteen näkee parhaiten pelaamalla; sanallisesti sitä voisi kuvailla käänteiseksi madonreikätunneliksi. Tiiliä luikertelee 3d-avaruudessa ympäriinsä ja niiden päällä voi kävellä. Jotta softan rakenne pysyisi yksinkertaisena, liikkuminen on tehty vähän tylsäksi. Joka tiili sijaitsee jossain pisteessä jonka koordinaatit ovat kokonaislukuja ja tiilien koko joka suuntaan on ykkönen. Maasto generoidaan siten, että siinä on N*N (N jokin pieni luku) pistettä harvassa, ja pisteiden välille arvotaan kulkukäytäviä. Matemaattisesti tällaisen kentän luomista voi käsitellä verkkona ja pienimmän virittävän puun ongelmana; jokaisesta pisteestä pääsee toiseen pisteeseen tasan yhtä reittiä, mikä tekee ihan siistin mallisen labyrintin.
+
+Koska maastotiilet ovat akselien suuntaisia ja kätevästi kokonaislukujen kohdissa, voi törmäystarkistukset toteuttaa siten, että katsotaan onko pelaajan alla tai edessä jotain tiiltä. Pelaaja sijaitsee joka liikkumisvaiheessa jossain kokonaislukukoordinaatissa tiilen päällä, ja pelaaja on pallo jonka halkaisija on ykkönen.
+
+Koordinaattien välillä liikkuminen on toteutettu animoimalla palloa paikasta toiseen siten, että välissä ei tarvitse tarkistaa törmäyksiä; riittää katsoa, voiko kohderuutuun kävellä. Jos ei voi eli kävelysuunnan alla ei ole tiiltä (putoaminen) tai kävelysuunnan päällä on tiili (törmäys), niin pelihahmo joko vierii tiilen toiselle reunalle (siirtyy ja kääntyy), tai kiipeää seinäreunalle (eli vain kääntyy). Kulku- ja katselusuunnat ovat aina koordinaattiakselien suuntaisia.
+
+Vihollisia (pacman-mörkö) liikkuu kentällä samalla animointikoodilla kuin millä pelaajan liikkuminen on toteutettu. Vihut on keksitty viimeisenä päivänä lisämausteeksi, joten koodi on vähän hassua kun se matkii liikettä millä pelaajaa kuljetettiin aluksi pelkästään näppiksellä.
+
+Kolikot luodaan sellaisiin paikkoihin, missä ne ovat näppärästi yhden erillisen tiilikasan päällä. Tätä toteuttaessa tuli mieleen että olisi pitänyt maastoa tehdessä rakentaa siitä oikeasti jokin verkkotietorakennekin, koska tilepohjaisesta kartasta näiden paikkojen etsiminen on inhottavaa (verkossa nämä taas ovat vain sellaisia solmuja, joilla on vain yksi naapuri). Koska näin saadaan suoraan monta paikkaa joista tiedetään että siihen saa jonkin objektin tiettyyn suuntaan, niin samoihin sijainteihin laitetaan aluksi myös mörköjä kävelemään. Kävelysuunta heitetään hatusta sellaiseen suuntaan, joka ei ole suoraan sinne tiilikasan sisään tai siitä ulospäin, niin että mörkö kävelee maan pinnalla eteenpäin.
+
+Valaistus on jotain mielekästä mutta yksinkertaista; pelaajalla on ikäänkuin edessään taskulamppu, joka valaisee eteenpäin (pelaajallahan on se suuntavektori), mikä hankaloittaa ympäröivän maan näkemistä. Jotta pelissä ei turhaantuisi ihan mielettömästi niin nurkassa on se karttakin. Se on toteutettu piirtämällä maasto erikseen toiseen tekstuuriin, joka sitten piirretään itse pelialueelle lätkäistyyn neliöön. Pelaajan katsomispaikka saadaan simppelisti camera-funktiolla sopivaan paikkaan niin, että otetaan pelaajan paikka ja mennään siitä vähän taaksepäin ja yläviistoon. Jos kameran ja pelaajan väliin tulee pystyseinä, niin pelipalloa ei näy. Oli tarkoitus tehdä näissä tilanteissa maastosta läpikuultavaa, mutta se nyt jäi ehtimättä.
+
+* Arvostelukriteeripohdintaa tiivistettynä
+
+- Mallien laatu: Työ sisältää itse tehtyjä tekstuuroituja kuutioita ilman mallinnusohjelmaa, sekä pari mallinnusohjelmalla (Blender) tehtyä objektia. Pelihahmo on triviaali pallo, mutta se on obj-mallista ladattu. Pelialueelta kerättävät kolikot ovat myös malliinnettu käsin ja tekstuurikartta gimpattu itse. Maaston tekstuuri on tylysti googlattu ja muokattu vain pienemmäksi.
+
+- Kokonaisuuden laajuus: Vaikkei kentällä ole mitään erityisen monimutkaista tai hienon näköistä asiaa, on pelattavuus aika monimutkaista kun 3d-labyrintti on vaikea hahmottaa. Maaston käsittely on myös tuntunut jokseenkin monimutkaiselta parasta ratkaisua harkitessa. Maasto myös generoidaan dynaamisesti ja se on joka kerta erilainen.
+
+- Animointi: Maailmaa pyöritetään pelihahmon mukaan ja pelihahmo vierii ja kääntyy ympäriinsä; paikkojen ja katselusuuntien väliset siirtymät on animoitu yksinkertaisesti mutta mielekkäästi. Monimutkaisia liikeratoja (bezier tms.) ei ole, mutta ne olisi helppo toteuttaa ohjelman rakenteeseen tarvittaessa. Pelihahmo vain kävelee ja pyörii ja kolikot pyörivät paikallaan sekä vihut kävelevät.
+
+- Valaistus: Taustavalaistus sekä pelihahmon mukana kulkeva taskulamppua matkiva spottivalo, joka valaisee kävely-/katselusuuntaan. Tutkittu mahdollisuutta käyttää omia glsl-shadereita maastoonkin, kun oletusvarjostus toimii niin nihkeästi tökkien kun verteksejä joille valaistus lasketaan on kovin vähän.
+
+- Teksturointi: Netistä haettuja kuvankäpistelyohjelmalla edelleenkäsiteltyjä tekstuureita joka objektissa.
+
+- Navigointi: Pelihahmo voi kävellä ja katsoa ympäriinsä rajoitetusti sen mukaan miten maailman maasto antaa myöten. Viholliset kävelevät ja siirtyvät tasolta toisells vastaavasti kuin pelaaja.
+
+- Vuorovaikutus: Pelialueella on poimittavia objekteja ja vihuja jotka aiheuttavat vahinkoa osumasta ja seuraavat maastoa.
